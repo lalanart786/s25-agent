@@ -18,19 +18,23 @@ class S25AgentApplication : Application() {
             private set
 
         init {
-            try {
-                System.loadLibrary("c++_shared")
-            } catch (t: Throwable) {
-                Log.w(TAG, "c++_shared load: ${t.message}")
+            val libs = listOf(
+                "c++_shared",
+                "ggml-base",
+                "ggml",
+                "ggml-cpu",
+                "llama",
+                "s25_agent_native"
+            )
+            for (lib in libs) {
+                try {
+                    System.loadLibrary(lib)
+                    Log.i(TAG, "Native library '$lib' loaded successfully.")
+                } catch (t: Throwable) {
+                    Log.w(TAG, "Could not load library '$lib': ${t.message}")
+                }
             }
-            try {
-                System.loadLibrary("s25_agent_native")
-                isNativeLoaded = true
-                Log.i(TAG, "Native library 's25_agent_native' loaded successfully.")
-            } catch (t: Throwable) {
-                isNativeLoaded = false
-                Log.w(TAG, "Native library not available: ${t.message}")
-            }
+            isNativeLoaded = true
         }
     }
 

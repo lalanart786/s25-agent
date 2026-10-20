@@ -2,18 +2,21 @@
 #include <string>
 #include <vector>
 #include <atomic>
-#include <thread>
-#include <chrono>
 #include <sstream>
 #include <android/log.h>
+#include "include/llama.h"
 #include "audio_router.h"
 
 #define TAG "LlamaJNI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 
+static struct llama_model * g_model = nullptr;
+static struct llama_context * g_context = nullptr;
+static struct llama_sampler * g_sampler = nullptr;
 static std::atomic<bool> g_is_generating{false};
 static std::atomic<int> g_active_threads{6};
+static std::string g_loaded_path = "";
 
 extern "C" {
 
@@ -25,11 +28,69 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeInitModel(
         jint nGpuLayers,
         jint nThreads,
         jint contextSize) {
+
     const char* path = env->GetStringUTFChars(modelPath, nullptr);
-    LOGI("Loading GGUF model via mmap from: %s", path);
-    LOGI("Config: nGpuLayers=%d (Adreno 830 Vulkan), nThreads=%d, ctx=%d", nGpuLayers, nThreads, contextSize);
-    
+    LOGI("nativeInitModel: Loading GGUF weights via Snapdragon 8 Elite: %s", path);
+
+    // If same model already active, reuse
+    if (g_model != nullptr && g_loaded_path == std::string(path)) {
+        LOGI("Model already initialized and active: %s", path);
+        env->ReleaseStringUTFChars(modelPath, path);
+        return JNI_TRUE;
+    }
+
+    // Free any previous context/model
+    if (g_sampler != nullptr) {
+        llama_sampler_free(g_sampler);
+        g_sampler = nullptr;
+    }
+    if (g_context != nullptr) {
+        llama_free(g_context);
+        g_context = nullptr;
+    }
+    if (g_model != nullptr) {
+        llama_model_free(g_model);
+        g_model = nullptr;
+    }
+
+    llama_backend_init();
+
+    struct llama_model_params mparams = llama_model_default_params();
+    mparams.n_gpu_layers = nGpuLayers;
+
+    g_model = llama_model_load_from_file(path, mparams);
+    if (g_model == nullptr) {
+        LOGE("Failed to load GGUF model from file: %s", path);
+        env->ReleaseStringUTFChars(modelPath, path);
+        return JNI_FALSE;
+    }
+
+    struct llama_context_params cparams = llama_context_default_params();
+    cparams.n_ctx = contextSize > 0 ? contextSize : 2048;
+    cparams.n_threads = nThreads > 0 ? nThreads : 6;
+    cparams.n_threads_batch = nThreads > 0 ? nThreads : 6;
+
+    g_context = llama_init_from_model(g_model, cparams);
+    if (g_context == nullptr) {
+        LOGE("Failed to create llama_context for model: %s", path);
+        llama_model_free(g_model);
+        g_model = nullptr;
+        env->ReleaseStringUTFChars(modelPath, path);
+        return JNI_FALSE;
+    }
+
+    // Initialize modern sampler chain (temperature 0.7 + top_p 0.95 + top_k 40)
+    struct llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
+    g_sampler = llama_sampler_chain_init(sparams);
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_top_k(40));
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_top_p(0.95f, 1));
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_temp(0.7f));
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_dist(1234));
+
     g_active_threads.store(nThreads);
+    g_loaded_path = std::string(path);
+
+    LOGI("Model successfully loaded & initialized with real llama.cpp engine!");
     env->ReleaseStringUTFChars(modelPath, path);
     return JNI_TRUE;
 }
@@ -41,97 +102,93 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeGenerateStream(
         jstring prompt,
         jstring grammarUtf8,
         jobject tokenCallback) {
-    
+
     const char* promptText = env->GetStringUTFChars(prompt, nullptr);
-    const char* grammarText = grammarUtf8 != nullptr ? env->GetStringUTFChars(grammarUtf8, nullptr) : "";
-    
     g_is_generating.store(true);
-    LOGI("Starting Snapdragon 8 Elite inference stream with prompt len: %zu", strlen(promptText));
 
     jclass callbackClass = env->GetObjectClass(tokenCallback);
     jmethodID onTokenMethod = env->GetMethodID(callbackClass, "onToken", "(Ljava/lang/String;)V");
     jmethodID onCompleteMethod = env->GetMethodID(callbackClass, "onComplete", "()V");
 
-    std::string promptStr(promptText);
-    
-    // Extract strictly the user's latest query after "User: " to avoid matching words in system profile
-    std::string userQuery = promptStr;
-    size_t lastUserIdx = promptStr.rfind("User:");
-    if (lastUserIdx != std::string::npos) {
-        userQuery = promptStr.substr(lastUserIdx + 5);
-        size_t assistantIdx = userQuery.find("Assistant:");
-        if (assistantIdx != std::string::npos) {
-            userQuery = userQuery.substr(0, assistantIdx);
+    if (g_model == nullptr || g_context == nullptr) {
+        LOGE("nativeGenerateStream called but model is not initialized!");
+        jstring err = env->NewStringUTF("[Error: Model not loaded in VRAM]");
+        env->CallVoidMethod(tokenCallback, onTokenMethod, err);
+        env->DeleteLocalRef(err);
+        env->CallVoidMethod(tokenCallback, onCompleteMethod);
+        g_is_generating.store(false);
+        env->ReleaseStringUTFChars(prompt, promptText);
+        return;
+    }
+
+    const struct llama_vocab * vocab = llama_model_get_vocab(g_model);
+    int prompt_len = strlen(promptText);
+
+    // 1. Tokenize prompt
+    std::vector<llama_token> tokens_list(prompt_len + 32);
+    int n_tokens = llama_tokenize(vocab, promptText, prompt_len, tokens_list.data(), tokens_list.size(), true, true);
+    if (n_tokens < 0) {
+        tokens_list.resize(-n_tokens);
+        n_tokens = llama_tokenize(vocab, promptText, prompt_len, tokens_list.data(), tokens_list.size(), true, true);
+    }
+    tokens_list.resize(n_tokens);
+
+    LOGI("Tokenized prompt into %d tokens. Beginning inference...", n_tokens);
+
+    // 2. Clear KV cache for new turn
+    llama_kv_cache_clear(g_context);
+
+    // 3. Batch decode initial prompt
+    struct llama_batch batch = llama_batch_get_one(tokens_list.data(), tokens_list.size());
+    if (llama_decode(g_context, batch) != 0) {
+        LOGE("llama_decode failed on initial prompt!");
+        jstring err = env->NewStringUTF("[Inference decode error]");
+        env->CallVoidMethod(tokenCallback, onTokenMethod, err);
+        env->DeleteLocalRef(err);
+        env->CallVoidMethod(tokenCallback, onCompleteMethod);
+        g_is_generating.store(false);
+        env->ReleaseStringUTFChars(prompt, promptText);
+        return;
+    }
+
+    // 4. Autoregressive token generation loop
+    const int max_tokens_to_gen = 512;
+    int n_gen = 0;
+
+    while (n_gen < max_tokens_to_gen && g_is_generating.load()) {
+        llama_token new_token_id = llama_sampler_sample(g_sampler, g_context, -1);
+
+        // Check for EOS
+        if (llama_vocab_is_eog(vocab, new_token_id)) {
+            LOGI("Encountered EOG/EOS token. Finished generation.");
+            break;
         }
-    }
 
-    std::string lowerPrompt = userQuery;
-    for (auto &c : lowerPrompt) c = tolower(c);
+        // Convert token to piece
+        char buf[256];
+        int n_chars = llama_token_to_piece(vocab, new_token_id, buf, sizeof(buf), 0, false);
+        if (n_chars > 0) {
+            std::string piece(buf, n_chars);
+            jstring tokenStr = env->NewStringUTF(piece.c_str());
+            env->CallVoidMethod(tokenCallback, onTokenMethod, tokenStr);
+            env->DeleteLocalRef(tokenStr);
+        }
 
-    // Contextual Dynamic Token Stream Generator attuned to Kishan & Jerry
-    std::vector<std::string> tokens;
+        // Decode this single token to get next logits
+        llama_token next_token[1] = { new_token_id };
+        struct llama_batch next_batch = llama_batch_get_one(next_token, 1);
+        if (llama_decode(g_context, next_batch) != 0) {
+            LOGE("llama_decode failed during token sampling loop!");
+            break;
+        }
 
-    // 1. "what you can do for me" / "who are you" / "capabilities"
-    if (lowerPrompt.find("what you can do") != std::string::npos || 
-        lowerPrompt.find("who are you") != std::string::npos || 
-        lowerPrompt.find("help") != std::string::npos || 
-        lowerPrompt.find("શું કરી શકો") != std::string::npos ||
-        lowerPrompt.find("કોણ છો") != std::string::npos) {
-        tokens = {
-            "નમસ્તે ", "કિશનભાઈ! ", "હું ", "Jerry ", "છું — તમારો ", "My Agent ", "ઓન-ડિવાઇસ પર્સનલાઇઝ્ડ આસિસ્ટન્ટ.\n\n",
-            "હું તમારા માટે નીચેના કાર્યો કરી શકું છું:\n",
-            "1. 💬 **બહુભાષી ચેટ**: ગુજરાતી, हिन्दी અને English માં સ્માર્ટ સંવાદ.\n",
-            "2. 📱 **એપ ઓટોમેશન**: WhatsApp મેસેજ ડ્રાફ્ટિંગ, કૉલ ડાયલિંગ અને Maps નેવિગેશન.\n",
-            "3. 🖥️ **Screen Vision**: સ્ક્રીન પરનું લખાણ વાંચીને સમજી શકું છું.\n",
-            "4. ☀️ **મોર્નિંગ બ્રીફિંગ**: આજના હવામાન, કેલેન્ડર મીટિંગ્સ અને બેટરી અપડેટ્સ.\n",
-            "5. 🔒 **Knox Memory Vault**: તમારી બિઝનેસ અને પર્સનલ વિગતો એન્ક્રિપ્ટેડ સેવ રાખું છું.\n",
-            "6. ⚡ **કમ્પાઉન્ડ વર્કફ્લો**: મલ્ટી-એપ ટાસ્ક એક સાથે ઓટોમેટ કરવા."
-        };
-    } else if (lowerPrompt.find("schedule") != std::string::npos || lowerPrompt.find("શેડ્યુલ") != std::string::npos || lowerPrompt.find("મીટિંગ") != std::string::npos) {
-        tokens = {
-            "📅 આજનું ", "શેડ્યુલ: \n",
-            "1. સવારે 10:00 AM: ", "સુરત વેરહાઉસ ડિસ્પેચ સમીક્ષા.\n",
-            "2. બપોરે 2:30 PM: ", "Lalan Art નવી કલેક્શન મીટિંગ.\n",
-            "3. સાંજે 8:45 PM: ", "Zoho Books દૈનિક ઓડિટ એન્ડ લેજર રિકોન્સિલેશન."
-        };
-    } else if (lowerPrompt.find("surat office") != std::string::npos || lowerPrompt.find("સુરત ઓફિસ") != std::string::npos) {
-        tokens = {
-            "તમારી ", "સુરત હેડ ઓફિસ ", "રીંગ રોડ પર સ્થિત છે. ",
-            "જ્યારે તમે 200m ના રેડિયસમાં આવશો ",
-            "ત્યારે Jerry આપમેળે પેન્ડિંગ ઇન્વોઇસ બતાવશે."
-        };
-    } else if (lowerPrompt.find("lalan") != std::string::npos || lowerPrompt.find("લલન") != std::string::npos) {
-        tokens = {
-            "Lalan Art ", "એથનિક વેર અને સાડી મેન્યુફેક્ચરિંગ માટેનું ",
-            "પ્રીમિયમ બ્રાન્ડ છે. ",
-            "તમારા તમામ બિઝનેસ ફેક્ટ્સ Knox Vault માં સેફ છે."
-        };
-    } else {
-        tokens = {
-            "નમસ્તે ", "કિશનભાઈ! 🙏 ", "હું Jerry છું. ",
-            "તમારો કમાન્ડ પ્રોસેસ થઈ રહ્યો છે. ",
-            "હું WhatsApp, Maps, કેલેન્ડર અથવા કોઈ પ્રશ્નના જવાબ માટે તૈયાર છું."
-        };
-    }
-
-    // Stream tokens with realistic Snapdragon 8 Elite high-speed pacing (~30ms per token chunk)
-    for (const auto& token : tokens) {
-        if (!g_is_generating.load()) break;
-
-        jstring tokenStr = env->NewStringUTF(token.c_str());
-        env->CallVoidMethod(tokenCallback, onTokenMethod, tokenStr);
-        env->DeleteLocalRef(tokenStr);
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        n_gen++;
     }
 
     env->CallVoidMethod(tokenCallback, onCompleteMethod);
-
     g_is_generating.store(false);
     env->ReleaseStringUTFChars(prompt, promptText);
-    if (grammarUtf8 != nullptr) {
-        env->ReleaseStringUTFChars(grammarUtf8, grammarText);
-    }
+    LOGI("Inference complete. Generated %d tokens.", n_gen);
 }
 
 JNIEXPORT void JNICALL
@@ -149,6 +206,9 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeSetThreadCount(
         jint threads) {
     LOGI("ThermalGuard thread count updated to: %d", threads);
     g_active_threads.store(threads);
+    if (g_context != nullptr) {
+        llama_set_n_threads(g_context, threads, threads);
+    }
 }
 
 JNIEXPORT void JNICALL
@@ -156,6 +216,19 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeUnloadModel(
         JNIEnv* /* env */,
         jobject /* this */) {
     LOGI("Model unloaded from RAM/VRAM.");
+    if (g_sampler != nullptr) {
+        llama_sampler_free(g_sampler);
+        g_sampler = nullptr;
+    }
+    if (g_context != nullptr) {
+        llama_free(g_context);
+        g_context = nullptr;
+    }
+    if (g_model != nullptr) {
+        llama_model_free(g_model);
+        g_model = nullptr;
+    }
+    g_loaded_path = "";
 }
 
 JNIEXPORT jfloatArray JNICALL
@@ -164,8 +237,6 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeCalculateEmbedding(
         jobject /* this */,
         jstring text) {
     const char* str = env->GetStringUTFChars(text, nullptr);
-    LOGI("Computing 384-d embedding for query: %s", str);
-    
     jfloatArray result = env->NewFloatArray(384);
     std::vector<float> vec(384, 0.05f);
     
