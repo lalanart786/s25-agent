@@ -6,32 +6,42 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import android.util.Log
-import net.sqlcipher.database.SQLiteDatabase
 
 class S25AgentApplication : Application() {
 
     companion object {
         private const val TAG = "S25AgentApp"
         const val BACKGROUND_CHANNEL_ID = "s25_agent_background_channel"
-        
+
+        @Volatile
+        var isNativeLoaded = false
+            private set
+
         init {
             try {
                 System.loadLibrary("s25_agent_native")
+                isNativeLoaded = true
                 Log.i(TAG, "Native library 's25_agent_native' loaded successfully.")
             } catch (e: UnsatisfiedLinkError) {
-                Log.e(TAG, "Failed to load native library: ${e.message}")
+                isNativeLoaded = false
+                Log.w(TAG, "Native library not available (running in UI-only mode): ${e.message}")
             }
         }
     }
 
     override fun onCreate() {
         super.onCreate()
-        
+
         // Initialize SQLCipher encrypted database engine
-        SQLiteDatabase.loadLibs(this)
-        
+        try {
+            net.sqlcipher.database.SQLiteDatabase.loadLibs(this)
+            Log.i(TAG, "SQLCipher native libraries loaded.")
+        } catch (e: Exception) {
+            Log.w(TAG, "SQLCipher init skipped: ${e.message}")
+        }
+
         createNotificationChannels()
-        Log.i(TAG, "S25 Agent Application initialized on Snapdragon 8 Elite runtime.")
+        Log.i(TAG, "S25 Agent Application initialized.")
     }
 
     private fun createNotificationChannels() {

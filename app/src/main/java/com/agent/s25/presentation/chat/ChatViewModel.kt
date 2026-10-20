@@ -2,6 +2,7 @@ package com.agent.s25.presentation.chat
 
 import android.app.Application
 import android.speech.tts.TextToSpeech
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.agent.s25.data.audio.UnifiedAudioRouter
@@ -21,10 +22,16 @@ import java.util.Locale
 
 class ChatViewModel(application: Application) : AndroidViewModel(application), TextToSpeech.OnInitListener {
 
-    private val db = MemoryDatabase.getInstance(application)
-    val memoryManager = MemoryManager(db)
+    private val db: MemoryDatabase? = try {
+        MemoryDatabase.getInstance(application)
+    } catch (e: Exception) {
+        Log.e("ChatViewModel", "Database init failed: ${e.message}")
+        null
+    }
+
+    val memoryManager: MemoryManager? = db?.let { MemoryManager(it) }
     val mcpClient = McpClient(application)
-    val toolRegistry = ToolRegistry(mcpClient, memoryManager)
+    val toolRegistry: ToolRegistry? = memoryManager?.let { ToolRegistry(mcpClient, it) }
     private val llamaEngine = LlamaEngine()
 
     private var tts: TextToSpeech? = null
@@ -33,7 +40,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
     private val _messages = MutableStateFlow<List<ChatMessage>>(listOf(
         ChatMessage(
             sender = MessageSender.AGENT,
-            text = "નમસ્તે કિશનભાઈ! હું તમારો S25 પર્સનલ એજન્ટ છું. તમે ગુજરાતી, હિન્દી કે અંગ્રેજીમાં કોઈપણ કામ કહી શકો છો."
+            text = "નમસ્તે કિશનભાઈ! 🙏 હું તમારો S25 Personal Agent છું.\n\n" +
+                "તમે ગુજરાતી, હિન્દી કે English માં કોઈપણ સવાલ પૂછી શકો છો.\n\n" +
+                if (!llamaEngine.isNativeAvailable) {
+                    "⚠️ AI model not loaded yet. Place a .gguf file in:\n" +
+                    "`/sdcard/Download/s25-agent/models/`\n" +
+                    "and restart the app."
+                } else {
+                    "✅ On-device AI engine ready!"
+                }
         )
     ))
     val messages = _messages.asStateFlow()
@@ -66,8 +81,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             _isGenerating.value = true
 
             // 1. Build prompt with Core Profile + Relevant Tools
-            val profileHeader = memoryManager.getCoreProfilePromptHeader()
-            val relevantTools = toolRegistry.getRelevantTools(userText)
+            val profileHeader = memoryManager?.getCoreProfilePromptHeader() ?: ""
+            val relevantTools = toolRegistry?.getRelevantTools(userText) ?: emptyList()
 
             val toolsHeader = if (relevantTools.isNotEmpty()) {
                 val toolDefs = relevantTools.joinToString("\n") { "- ${it.name}: ${it.description}" }
@@ -93,13 +108,20 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
     }
 
     fun startListening() {
-        UnifiedAudioRouter.startCapture()
-        UnifiedAudioRouter.setRoute(UnifiedAudioRouter.Route.INDIC_STT)
-        _isListening.value = true
+        try {
+            UnifiedAudioRouter.startCapture()
+            UnifiedAudioRouter.setRoute(UnifiedAudioRouter.Route.INDIC_STT)
+            _isListening.value = true
+        } catch (e: Exception) {
+            Log.w("ChatViewModel", "Audio capture failed: ${e.message}")
+            _isListening.value = false
+        }
     }
 
     fun stopListeningAndSend() {
-        UnifiedAudioRouter.setRoute(UnifiedAudioRouter.Route.WAKE_WORD)
+        try {
+            UnifiedAudioRouter.setRoute(UnifiedAudioRouter.Route.WAKE_WORD)
+        } catch (_: Exception) {}
         _isListening.value = false
         // Trigger simulated recognition output for voice button test
         sendMessage("સુરત ઓફિસે જઈને મને પેન્ડિંગ ઇન્વોઇસ યાદ કરાવજે.")
@@ -107,7 +129,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
 
     fun confirmToolExecution(msgId: String, toolName: String, argsJson: String) {
         viewModelScope.launch {
-            val result = toolRegistry.executeTool(toolName, argsJson)
+            val result = toolRegistry?.executeTool(toolName, argsJson) ?: "{\"error\": \"Tool registry unavailable\"}"
             val toolMsg = ChatMessage(sender = MessageSender.TOOL_OUTPUT, text = "Tool Output ($toolName):\n$result")
             _messages.value = _messages.value + toolMsg
         }
@@ -115,15 +137,21 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
 
     private fun speakBack(text: String, bcp47Locale: String) {
         if (!isTtsReady) return
-        val locale = Locale.forLanguageTag(bcp47Locale)
-        tts?.language = locale
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "s25_tts_utterance")
+        try {
+            val locale = Locale.forLanguageTag(bcp47Locale)
+            tts?.language = locale
+            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "s25_tts_utterance")
+        } catch (e: Exception) {
+            Log.w("ChatViewModel", "TTS speak failed: ${e.message}")
+        }
     }
 
     override fun onCleared() {
         super.onCleared()
         tts?.stop()
         tts?.shutdown()
-        UnifiedAudioRouter.stopCapture()
+        try {
+            UnifiedAudioRouter.stopCapture()
+        } catch (_: Exception) {}
     }
 }

@@ -58,7 +58,11 @@ object UnifiedAudioRouter {
                 while (isActive && isRunning) {
                     val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (read > 0) {
-                        IndicSpeechBridge.feedAudioSamples(buffer, read)
+                        try {
+                            IndicSpeechBridge.feedAudioSamples(buffer, read)
+                        } catch (_: UnsatisfiedLinkError) {
+                            // Native speech bridge not available
+                        }
                     }
                 }
             }
@@ -69,8 +73,12 @@ object UnifiedAudioRouter {
     }
 
     fun setRoute(route: Route) {
-        IndicSpeechBridge.setAudioRoute(route.code)
-        Log.i(TAG, "Audio stream redirected to: $route")
+        try {
+            IndicSpeechBridge.setAudioRoute(route.code)
+            Log.i(TAG, "Audio stream redirected to: $route")
+        } catch (e: UnsatisfiedLinkError) {
+            Log.w(TAG, "Native audio route unavailable: ${e.message}")
+        }
     }
 
     fun stopCapture() {

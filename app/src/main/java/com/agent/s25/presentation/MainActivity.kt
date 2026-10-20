@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,24 +34,35 @@ import com.agent.s25.service.AgentForegroundService
 class MainActivity : ComponentActivity() {
 
     private val chatViewModel: ChatViewModel by viewModels()
-    private lateinit var thermalMonitor: ThermalMonitor
+    private var thermalMonitor: ThermalMonitor? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        // Permissions evaluated
+        // After permissions granted, try starting background service
+        tryStartBackgroundAgentService()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        thermalMonitor = ThermalMonitor(this)
-        thermalMonitor.checkDeviceTemperature()
+        // Thermal monitoring (safe — no JNI calls)
+        try {
+            thermalMonitor = ThermalMonitor(this)
+            thermalMonitor?.checkDeviceTemperature()
+        } catch (e: Exception) {
+            Log.w("MainActivity", "ThermalMonitor init skipped: ${e.message}")
+        }
 
         requestRequiredPermissions()
-        startBackgroundAgentService()
 
-        val db = MemoryDatabase.getInstance(this)
+        // Initialize encrypted database (safe — KeystoreManager has fallback)
+        val db = try {
+            MemoryDatabase.getInstance(this)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Database init failed: ${e.message}")
+            null
+        }
 
         setContent {
             S25AgentTheme {
@@ -117,13 +129,28 @@ class MainActivity : ComponentActivity() {
                     ) {
                         when (selectedTab) {
                             0 -> ChatScreen(viewModel = chatViewModel)
-                            1 -> MemoryVaultScreen(db = db)
+                            1 -> if (db != null) MemoryVaultScreen(db = db) else PlaceholderScreen("Memory Vault initializing...")
                             2 -> McpHubScreen(mcpClient = chatViewModel.mcpClient)
-                            3 -> SavedPlacesScreen(db = db)
+                            3 -> if (db != null) SavedPlacesScreen(db = db) else PlaceholderScreen("Places initializing...")
                         }
                     }
                 }
             }
+        }
+
+        // Defer foreground service start
+        tryStartBackgroundAgentService()
+    }
+
+    @Composable
+    private fun PlaceholderScreen(message: String) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(AmoledBackground),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            Text(text = message, color = TextSecondary)
         }
     }
 
@@ -145,12 +172,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun startBackgroundAgentService() {
-        val intent = Intent(this, AgentForegroundService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+    private fun tryStartBackgroundAgentService() {
+        try {
+            // Check POST_NOTIFICATIONS permission on Android 13+ before starting foreground service
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                    Log.w("MainActivity", "POST_NOTIFICATIONS not granted yet, deferring foreground service.")
+                    return
+                }
+            }
+            val intent = Intent(this, AgentForegroundService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Could not start foreground service: ${e.message}")
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.agent.s25.domain.memory
 
+import com.agent.s25.S25AgentApplication
 import com.agent.s25.data.db.MemoryDatabase
 import com.agent.s25.data.model.MemoryEntity
 import com.agent.s25.domain.engine.LlamaBridge
@@ -10,20 +11,32 @@ class MemoryManager(private val db: MemoryDatabase) {
     private val gson = Gson()
 
     suspend fun getCoreProfilePromptHeader(): String {
-        val profileItems = db.memoryDao().getCoreProfile().first()
-        if (profileItems.isEmpty()) return ""
+        return try {
+            val profileItems = db.memoryDao().getCoreProfile().first()
+            if (profileItems.isEmpty()) return ""
 
-        val sb = StringBuilder("### Persistent User Profile:\n")
-        profileItems.forEach { item ->
-            sb.append("- ${item.key}: ${item.value}\n")
+            val sb = StringBuilder("### Persistent User Profile:\n")
+            profileItems.forEach { item ->
+                sb.append("- ${item.key}: ${item.value}\n")
+            }
+            sb.toString()
+        } catch (e: Exception) {
+            ""
         }
-        return sb.toString()
     }
 
     suspend fun rememberFact(category: String, key: String, value: String, lang: String = "gu"): Long {
         val queryForEmbedding = "$key: $value"
-        val embedding = LlamaBridge.nativeCalculateEmbedding(queryForEmbedding)
-        val embeddingJson = gson.toJson(embedding)
+        val embeddingJson = if (S25AgentApplication.isNativeLoaded) {
+            try {
+                val embedding = LlamaBridge.nativeCalculateEmbedding(queryForEmbedding)
+                gson.toJson(embedding)
+            } catch (e: UnsatisfiedLinkError) {
+                "[]"
+            }
+        } else {
+            "[]"
+        }
 
         val entity = MemoryEntity(
             category = category,
@@ -36,8 +49,18 @@ class MemoryManager(private val db: MemoryDatabase) {
     }
 
     suspend fun searchPastMemory(query: String, topK: Int = 3): List<MemoryEntity> {
-        val queryEmbedding = LlamaBridge.nativeCalculateEmbedding(query)
         val allMemories = db.memoryDao().getAllRawList()
+
+        // If native is not loaded, just return most recent memories
+        if (!S25AgentApplication.isNativeLoaded) {
+            return allMemories.takeLast(topK)
+        }
+
+        val queryEmbedding = try {
+            LlamaBridge.nativeCalculateEmbedding(query)
+        } catch (e: UnsatisfiedLinkError) {
+            return allMemories.takeLast(topK)
+        }
 
         return allMemories
             .map { entity ->
