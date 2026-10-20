@@ -135,8 +135,11 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeGenerateStream(
 
     LOGI("Tokenized prompt into %d tokens. Beginning inference...", n_tokens);
 
-    // 2. Clear KV cache for new turn
-    llama_kv_cache_clear(g_context);
+    // 2. Clear memory / KV cache for new turn
+    llama_memory_t mem = llama_get_memory(g_context);
+    if (mem) {
+        llama_memory_clear(mem, true);
+    }
 
     // 3. Batch decode initial prompt
     struct llama_batch batch = llama_batch_get_one(tokens_list.data(), tokens_list.size());
