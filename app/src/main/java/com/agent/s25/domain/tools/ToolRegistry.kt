@@ -32,19 +32,66 @@ class ToolRegistry(
         return memoryTools + mcpClient.availableTools.value
     }
 
-    // Semantic Dynamic Tool Selection (RAG for Tools)
-    fun getRelevantTools(userPrompt: String, maxTools: Int = 4): List<McpToolDefinition> {
+    /**
+     * Multilingual dynamic tool selection (RAG for on-device tools).
+     * Recognizes user intent in Gujarati, Hindi, and English.
+     */
+    fun getRelevantTools(userPrompt: String, maxTools: Int = 6): List<McpToolDefinition> {
         val all = getAllAvailableTools()
         val lowerPrompt = userPrompt.lowercase()
 
-        // Prioritize tools matching keywords in the prompt
         return all.sortedByDescending { tool ->
             var score = 0
-            if (lowerPrompt.contains(tool.name.lowercase())) score += 10
+            val toolName = tool.name.lowercase()
+
+            if (lowerPrompt.contains(toolName)) score += 10
             val descWords = tool.description.lowercase().split(" ")
             for (w in descWords) {
                 if (w.length > 3 && lowerPrompt.contains(w)) score += 2
             }
+
+            // Multilingual intent scoring
+            if (toolName.contains("whatsapp") && (
+                lowerPrompt.contains("whatsapp") || lowerPrompt.contains("વોટ્સએપ") ||
+                lowerPrompt.contains("વાત") || lowerPrompt.contains("મેસેજ") || lowerPrompt.contains("संदेश")
+            )) score += 20
+
+            if ((toolName.contains("call") || toolName.contains("phone")) && (
+                lowerPrompt.contains("call") || lowerPrompt.contains("phone") || lowerPrompt.contains("dial") ||
+                lowerPrompt.contains("ફોન") || lowerPrompt.contains("કોલ") || lowerPrompt.contains("ડાયલ") ||
+                lowerPrompt.contains("फोन") || lowerPrompt.contains("कॉल")
+            )) score += 20
+
+            if ((toolName.contains("maps") || toolName.contains("navigate")) && (
+                lowerPrompt.contains("map") || lowerPrompt.contains("navigate") || lowerPrompt.contains("location") ||
+                lowerPrompt.contains("નકશો") || lowerPrompt.contains("રસ્તો") || lowerPrompt.contains("જવું") ||
+                lowerPrompt.contains("દિશા") || lowerPrompt.contains("नक्शा") || lowerPrompt.contains("रास्ता")
+            )) score += 20
+
+            if (toolName.contains("youtube") && (
+                lowerPrompt.contains("youtube") || lowerPrompt.contains("video") ||
+                lowerPrompt.contains("યૂટ્યુબ") || lowerPrompt.contains("યુટ્યુબ") || lowerPrompt.contains("વિડિયો") ||
+                lowerPrompt.contains("वीडियो")
+            )) score += 20
+
+            if (toolName.contains("app") && (
+                lowerPrompt.contains("app") || lowerPrompt.contains("launch") || lowerPrompt.contains("open") ||
+                lowerPrompt.contains("ખોલ") || lowerPrompt.contains("ઓપન") || lowerPrompt.contains("એપ") ||
+                lowerPrompt.contains("खोलो") || lowerPrompt.contains("ऐप")
+            )) score += 15
+
+            if (toolName.contains("screen") && (
+                lowerPrompt.contains("screen") || lowerPrompt.contains("click") || lowerPrompt.contains("read") ||
+                lowerPrompt.contains("સ્ક્રીન") || lowerPrompt.contains("વાંચ") || lowerPrompt.contains("ક્લિક") ||
+                lowerPrompt.contains("स्क्रीन")
+            )) score += 15
+
+            if ((toolName.contains("memory") || toolName.contains("remember")) && (
+                lowerPrompt.contains("remember") || lowerPrompt.contains("memory") ||
+                lowerPrompt.contains("યાદ") || lowerPrompt.contains("સાચવ") ||
+                lowerPrompt.contains("याद")
+            )) score += 15
+
             score
         }.take(maxTools)
     }

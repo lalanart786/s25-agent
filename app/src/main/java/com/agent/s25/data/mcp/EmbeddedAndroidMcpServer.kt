@@ -11,9 +11,10 @@ import com.google.gson.JsonObject
 class EmbeddedAndroidMcpServer(private val context: Context) {
 
     private val locationProvider = LocationProvider(context)
+    val appBridge = InstalledAppMcpBridge(context)
 
     fun listEmbeddedTools(): List<McpToolDefinition> {
-        return listOf(
+        val hardwareTools = listOf(
             McpToolDefinition(
                 serverId = "embedded_android",
                 name = "get_device_battery",
@@ -36,9 +37,15 @@ class EmbeddedAndroidMcpServer(private val context: Context) {
                 isReadOnly = false
             )
         )
+
+        return hardwareTools + appBridge.getToolDefinitions()
     }
 
     suspend fun executeTool(name: String, arguments: JsonObject): String {
+        if (appBridge.handlesTool(name)) {
+            return appBridge.executeTool(name, arguments)
+        }
+
         return when (name) {
             "get_device_battery" -> {
                 val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)

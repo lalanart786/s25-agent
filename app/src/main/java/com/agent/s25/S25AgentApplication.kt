@@ -36,15 +36,6 @@ class S25AgentApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-
-        // Initialize SQLCipher encrypted database engine
-        try {
-            net.sqlcipher.database.SQLiteDatabase.loadLibs(this)
-            Log.i(TAG, "SQLCipher native libraries loaded.")
-        } catch (e: Exception) {
-            Log.w(TAG, "SQLCipher init skipped: ${e.message}")
-        }
-
         createNotificationChannels()
         Log.i(TAG, "S25 Agent Application initialized.")
     }

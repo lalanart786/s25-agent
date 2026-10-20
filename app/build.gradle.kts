@@ -91,11 +91,10 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.kotlinx.coroutines.android)
 
-    // Storage & Encryption (Knox / SQLCipher + Room)
+    // Storage & Encryption (Knox Keystore AES-256 GCM + Standard Room SQLite)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
-    implementation(libs.sqlcipher.android)
 
     // MCP Client (SSE Transport & JSON)
     implementation(libs.okhttp)

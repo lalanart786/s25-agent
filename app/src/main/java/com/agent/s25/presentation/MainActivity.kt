@@ -11,21 +11,25 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.agent.s25.data.db.MemoryDatabase
 import com.agent.s25.domain.hardware.ThermalMonitor
 import com.agent.s25.presentation.chat.ChatScreen
 import com.agent.s25.presentation.chat.ChatViewModel
-import com.agent.s25.presentation.location.SavedPlacesScreen
+import com.agent.s25.presentation.goals.GoalsScreen
 import com.agent.s25.presentation.mcp.McpHubScreen
 import com.agent.s25.presentation.memory.MemoryVaultScreen
 import com.agent.s25.presentation.theme.*
@@ -38,7 +42,7 @@ class MainActivity : ComponentActivity() {
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
+    ) { _ ->
         // After permissions granted, try starting background service
         tryStartBackgroundAgentService()
     }
@@ -70,54 +74,127 @@ class MainActivity : ComponentActivity() {
 
                 Scaffold(
                     bottomBar = {
-                        NavigationBar(
-                            containerColor = AmoledSurface,
-                            contentColor = TextPrimary
-                        ) {
-                            NavigationBarItem(
-                                selected = selectedTab == 0,
-                                onClick = { selectedTab = 0 },
-                                icon = { Icon(Icons.Default.Chat, contentDescription = "Chat") },
-                                label = { Text("Chat") },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = PrimaryAccent,
-                                    selectedTextColor = PrimaryAccent,
-                                    indicatorColor = AmoledSurfaceVariant
-                                )
+                        Column {
+                            // Hair-thin frosted glass divider
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(AmoledGlassBorder)
                             )
-                            NavigationBarItem(
-                                selected = selectedTab == 1,
-                                onClick = { selectedTab = 1 },
-                                icon = { Icon(Icons.Default.Lock, contentDescription = "Vault") },
-                                label = { Text("Vault") },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = PrimaryAccent,
-                                    selectedTextColor = PrimaryAccent,
-                                    indicatorColor = AmoledSurfaceVariant
+                            NavigationBar(
+                                containerColor = AmoledSurface,
+                                contentColor = TextPrimary,
+                                tonalElevation = 0.dp
+                            ) {
+                                // Tab 0: Chat
+                                NavigationBarItem(
+                                    selected = selectedTab == 0,
+                                    onClick = { selectedTab = 0 },
+                                    icon = {
+                                        Icon(
+                                            Icons.Default.Chat,
+                                            contentDescription = "Chat",
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            "Chat",
+                                            fontSize = 11.sp,
+                                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = SoftCyan,
+                                        selectedTextColor = SoftCyan,
+                                        unselectedIconColor = TextMuted,
+                                        unselectedTextColor = TextMuted,
+                                        indicatorColor = ElectricIndigo.copy(alpha = 0.25f)
+                                    )
                                 )
-                            )
-                            NavigationBarItem(
-                                selected = selectedTab == 2,
-                                onClick = { selectedTab = 2 },
-                                icon = { Icon(Icons.Default.Build, contentDescription = "MCP") },
-                                label = { Text("MCP Hub") },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = PrimaryAccent,
-                                    selectedTextColor = PrimaryAccent,
-                                    indicatorColor = AmoledSurfaceVariant
+
+                                // Tab 1: Goals
+                                NavigationBarItem(
+                                    selected = selectedTab == 1,
+                                    onClick = { selectedTab = 1 },
+                                    icon = {
+                                        Icon(
+                                            Icons.Default.TrackChanges,
+                                            contentDescription = "Goals",
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            "Goals",
+                                            fontSize = 11.sp,
+                                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = AmberIndicGold,
+                                        selectedTextColor = AmberIndicGold,
+                                        unselectedIconColor = TextMuted,
+                                        unselectedTextColor = TextMuted,
+                                        indicatorColor = AmberIndicGold.copy(alpha = 0.25f)
+                                    )
                                 )
-                            )
-                            NavigationBarItem(
-                                selected = selectedTab == 3,
-                                onClick = { selectedTab = 3 },
-                                icon = { Icon(Icons.Default.Place, contentDescription = "Places") },
-                                label = { Text("Places") },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = PrimaryAccent,
-                                    selectedTextColor = PrimaryAccent,
-                                    indicatorColor = AmoledSurfaceVariant
+
+                                // Tab 2: Vault
+                                NavigationBarItem(
+                                    selected = selectedTab == 2,
+                                    onClick = { selectedTab = 2 },
+                                    icon = {
+                                        Icon(
+                                            Icons.Default.Lock,
+                                            contentDescription = "Vault",
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            "Vault",
+                                            fontSize = 11.sp,
+                                            fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = EmeraldSafeGreen,
+                                        selectedTextColor = EmeraldSafeGreen,
+                                        unselectedIconColor = TextMuted,
+                                        unselectedTextColor = TextMuted,
+                                        indicatorColor = EmeraldSafeGreen.copy(alpha = 0.25f)
+                                    )
                                 )
-                            )
+
+                                // Tab 3: Apps Hub
+                                NavigationBarItem(
+                                    selected = selectedTab == 3,
+                                    onClick = { selectedTab = 3 },
+                                    icon = {
+                                        Icon(
+                                            Icons.Default.Apps,
+                                            contentDescription = "Apps Hub",
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            "Apps Hub",
+                                            fontSize = 11.sp,
+                                            fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = ElectricIndigo,
+                                        selectedTextColor = ElectricIndigo,
+                                        unselectedIconColor = TextMuted,
+                                        unselectedTextColor = TextMuted,
+                                        indicatorColor = ElectricIndigo.copy(alpha = 0.25f)
+                                    )
+                                )
+                            }
                         }
                     }
                 ) { innerPadding ->
@@ -129,9 +206,9 @@ class MainActivity : ComponentActivity() {
                     ) {
                         when (selectedTab) {
                             0 -> ChatScreen(viewModel = chatViewModel)
-                            1 -> if (db != null) MemoryVaultScreen(db = db) else PlaceholderScreen("Memory Vault initializing...")
-                            2 -> McpHubScreen(mcpClient = chatViewModel.mcpClient)
-                            3 -> if (db != null) SavedPlacesScreen(db = db) else PlaceholderScreen("Places initializing...")
+                            1 -> GoalsScreen()
+                            2 -> if (db != null) MemoryVaultScreen(db = db) else PlaceholderScreen("Memory Vault initializing...")
+                            3 -> McpHubScreen(mcpClient = chatViewModel.mcpClient)
                         }
                     }
                 }

@@ -170,10 +170,32 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
 
     fun confirmToolExecution(msgId: String, toolName: String, argsJson: String) {
         viewModelScope.launch {
+            _messages.value = _messages.value.map {
+                if (it.id == msgId) it.copy(isPendingConfirmation = false) else it
+            }
             val result = toolRegistry?.executeTool(toolName, argsJson) ?: "{\"error\": \"Tool registry unavailable\"}"
             val toolMsg = ChatMessage(sender = MessageSender.TOOL_OUTPUT, text = "Tool Output ($toolName):\n$result")
             _messages.value = _messages.value + toolMsg
         }
+    }
+
+    fun rejectToolExecution(msgId: String) {
+        _messages.value = _messages.value.map {
+            if (it.id == msgId) it.copy(isPendingConfirmation = false) else it
+        } + ChatMessage(
+            sender = MessageSender.SYSTEM,
+            text = "⚠️ Privileged action rejected by user."
+        )
+    }
+
+    fun triggerSampleApprovalCard() {
+        val approvalMsg = ChatMessage(
+            sender = MessageSender.AGENT,
+            text = "I am ready to trigger the automated WhatsApp dispatch to the Surat team. Please confirm execution.",
+            isPendingConfirmation = true,
+            toolCallPayload = "{\n  \"tool\": \"whatsapp_dispatch\",\n  \"recipient\": \"Surat Diamond Bourse Office\",\n  \"phone\": \"+91 98250 88990\",\n  \"payload\": \"Order #LA-9021 Dispatched. ETA 4:30 PM\"\n}"
+        )
+        _messages.value = _messages.value + approvalMsg
     }
 
     private fun speakBack(text: String, bcp47Locale: String) {
