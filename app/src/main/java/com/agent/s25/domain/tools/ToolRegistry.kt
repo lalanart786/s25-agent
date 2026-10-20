@@ -92,6 +92,30 @@ class ToolRegistry(
                 lowerPrompt.contains("याद")
             )) score += 15
 
+            if ((toolName.contains("calendar") || toolName.contains("event")) && (
+                lowerPrompt.contains("calendar") || lowerPrompt.contains("event") || lowerPrompt.contains("meeting") ||
+                lowerPrompt.contains("કેલેન્ડર") || lowerPrompt.contains("ઇવેન્ટ") || lowerPrompt.contains("તારીખ") ||
+                lowerPrompt.contains("મીટિંગ") || lowerPrompt.contains("कैलेंडर") || lowerPrompt.contains("मीटिंग")
+            )) score += 20
+
+            if ((toolName.contains("alarm") || toolName.contains("timer")) && (
+                lowerPrompt.contains("alarm") || lowerPrompt.contains("timer") || lowerPrompt.contains("wake") ||
+                lowerPrompt.contains("એલાર્મ") || lowerPrompt.contains("જગાડજે") || lowerPrompt.contains("ટાઈમર") ||
+                lowerPrompt.contains("अलार्म") || lowerPrompt.contains("टाइमर")
+            )) score += 20
+
+            if (toolName.contains("contact") && (
+                lowerPrompt.contains("contact") || lowerPrompt.contains("phone book") ||
+                lowerPrompt.contains("સંપર્ક") || lowerPrompt.contains("કોન્ટેક્ટ") ||
+                lowerPrompt.contains("संपर्क")
+            )) score += 15
+
+            if (toolName.contains("clipboard") && (
+                lowerPrompt.contains("clipboard") || lowerPrompt.contains("copy") ||
+                lowerPrompt.contains("ક્લિપબોર્ડ") || lowerPrompt.contains("કોપી") ||
+                lowerPrompt.contains("क्लिपबोर्ड")
+            )) score += 20
+
             score
         }.take(maxTools)
     }

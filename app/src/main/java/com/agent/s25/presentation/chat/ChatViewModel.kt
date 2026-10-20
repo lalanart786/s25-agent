@@ -321,7 +321,128 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             return true
         }
 
-        // 8. Search Memory Intent ("મારું...", "યાદ છે?")
+        // 8. Calendar Events Intent
+        if (lower.contains("calendar") || lower.contains("event") || lower.contains("meeting") || lower.contains("કેલેન્ડર") || lower.contains("ઇવેન્ટ") || lower.contains("મીટિંગ")) {
+            if (lower.contains("schedule") || lower.contains("create") || lower.contains("add") || lower.contains("નવો") || lower.contains("શેડ્યુલ") || lower.contains("બનાવ")) {
+                _liveActionStep.value = "Preparing Calendar Event Creation..."
+                val payload = JsonObject().apply {
+                    addProperty("tool", "create_calendar_event")
+                    addProperty("appName", "Google / Samsung Calendar")
+                    addProperty("title", "Lalan Art Review Meeting")
+                    addProperty("description", "Scheduled via S25 Muse Agent")
+                    addProperty("hour", 11)
+                    addProperty("minute", 30)
+                }
+
+                val approvalMsg = ChatMessage(
+                    sender = MessageSender.AGENT,
+                    text = "📅 કેલેન્ડરમાં નવી મીટિંગ શેડ્યુલ કરવા માટે પુષ્ટિ કરો:",
+                    toolCallPayload = gson.toJson(payload),
+                    isPendingConfirmation = true
+                )
+                _messages.value = _messages.value + approvalMsg
+                _liveActionStep.value = "Awaiting approval for Calendar Event"
+                return true
+            } else {
+                _liveActionStep.value = "Reading upcoming calendar events..."
+                val eventsJson = toolRegistry?.executeTool("list_calendar_events", "{\"daysAhead\": 2}") ?: "{}"
+                val obj = try { gson.fromJson(eventsJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
+                val events = obj.getAsJsonArray("events")
+                val reply = if (events != null && events.size() > 0) {
+                    val sb = StringBuilder("📅 તમારા કેલેન્ડરની આગામી ઇવેન્ટ્સ:\n")
+                    events.forEach { e ->
+                        val item = e.asJsonObject
+                        sb.append("• ${item.get("title")?.asString} — ${item.get("formattedTime")?.asString}\n")
+                    }
+                    sb.toString().trim()
+                } else {
+                    "📅 આગામી 2 દિવસમાં કોઈ નવી મીટિંગ શેડ્યુલ નથી. તમારો દિવસ ફ્રી છે!"
+                }
+                _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
+                speakBack(reply, bcp47Locale)
+                _liveActionStep.value = "Calendar events retrieved"
+                return true
+            }
+        }
+
+        // 9. Alarm & Timer Intent
+        if (lower.contains("alarm") || lower.contains("timer") || lower.contains("એલાર્મ") || lower.contains("ટાઈમર") || lower.contains("જગાડજે")) {
+            _liveActionStep.value = "Preparing Alarm / Timer..."
+            val isTimer = lower.contains("timer") || lower.contains("ટાઈમર")
+            val toolName = if (isTimer) "start_timer" else "set_alarm"
+            val label = if (isTimer) "Lalan Art Production Timer (5 mins)" else "S25 Agent Morning Alarm (7:00 AM)"
+
+            val payload = JsonObject().apply {
+                addProperty("tool", toolName)
+                addProperty("appName", "Clock & Alarms")
+                if (isTimer) {
+                    addProperty("seconds", 300)
+                    addProperty("message", label)
+                } else {
+                    addProperty("hour", 7)
+                    addProperty("minute", 0)
+                    addProperty("message", label)
+                }
+            }
+
+            val actionPrompt = if (isTimer) "⏱️ 5 મિનિટનું ટાઈમર સેટ કરવા માટે મંજૂરી આપો:" else "⏰ સવારે 7:00 વાગ્યાનું એલાર્મ સેટ કરવા માટે મંજૂરી આપો:"
+            val approvalMsg = ChatMessage(
+                sender = MessageSender.AGENT,
+                text = actionPrompt,
+                toolCallPayload = gson.toJson(payload),
+                isPendingConfirmation = true
+            )
+            _messages.value = _messages.value + approvalMsg
+            _liveActionStep.value = "Awaiting approval for $toolName"
+            return true
+        }
+
+        // 10. Clipboard Manager Intent
+        if (lower.contains("clipboard") || lower.contains("ક્લિપબોર્ડ") || lower.contains("ક્લિપ") || lower.contains("કોપી થયેલ")) {
+            _liveActionStep.value = "Reading device clipboard..."
+            val clipJson = toolRegistry?.executeTool("get_clipboard_text", "{}") ?: "{}"
+            val obj = try { gson.fromJson(clipJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
+            val clipText = obj.get("clipboardText")?.asString ?: ""
+            val reply = if (clipText.isNotBlank()) {
+                "📋 તમારા ફોન ક્લિપબોર્ડ માં હાલમાં કોપી થયેલું ટેક્સ્ટ:\n\n\"$clipText\""
+            } else {
+                "📋 ક્લિપબોર્ડ હાલમાં ખાલી છે (No text in clipboard)."
+            }
+            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
+            speakBack(reply, bcp47Locale)
+            _liveActionStep.value = "Clipboard retrieved"
+            return true
+        }
+
+        // 11. Contacts Search Intent
+        if (lower.contains("contact") || lower.contains("સંપર્ક") || lower.contains("કોન્ટેક્ટ") || lower.contains("નંબર શું છે")) {
+            _liveActionStep.value = "Searching phone contacts book..."
+            val query = userText.replace("contact", "", ignoreCase = true)
+                .replace("કોન્ટેક્ટ", "", ignoreCase = true)
+                .replace("સંપર્ક", "", ignoreCase = true)
+                .replace("નંબર", "", ignoreCase = true)
+                .trim().ifBlank { "Surat" }
+
+            val contactsJson = toolRegistry?.executeTool("search_contacts", "{\"query\": \"$query\"}") ?: "{}"
+            val obj = try { gson.fromJson(contactsJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
+            val contacts = obj.getAsJsonArray("contacts")
+            val reply = if (contacts != null && contacts.size() > 0) {
+                val sb = StringBuilder("📇 સંપર્કો (Contacts Search for '$query'):\n")
+                contacts.forEach { c ->
+                    val item = c.asJsonObject
+                    sb.append("• ${item.get("name")?.asString}: ${item.get("phoneNumber")?.asString}\n")
+                }
+                sb.toString().trim()
+            } else {
+                "📇 '$query' માટે કોઈ સંપર્ક મળ્યો નથી."
+            }
+            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
+            speakBack(reply, bcp47Locale)
+            _liveActionStep.value = "Contacts search complete"
+            return true
+        }
+
+        // 12. Search Memory Intent ("મારું...", "યાદ છે?")
         if (lower.contains("office") || lower.contains("ઓફિસ") || lower.contains("gst") || lower.contains("જીએસટી") || lower.contains("લલન આર્ટ") || lower.contains("lalan art")) {
             _liveActionStep.value = "Searching Knox Memory Vault..."
             val memories = memoryManager?.searchPastMemory(userText, 2) ?: emptyList()

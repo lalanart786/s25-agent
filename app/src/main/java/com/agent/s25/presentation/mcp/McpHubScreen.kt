@@ -296,6 +296,79 @@ fun McpHubScreen(mcpClient: McpClient) {
                 )
             }
 
+            // Section 3: Executive Suite & Personal Productivity
+            item {
+                Spacer(modifier = Modifier.height(6.dp))
+                SectionHeader(
+                    title = "EXECUTIVE SUITE & PRODUCTIVITY",
+                    subtitle = "Calendar, Alarms, Contacts & System Clipboard"
+                )
+            }
+
+            item {
+                SystemHardwareCard(
+                    title = "Calendar & Meetings",
+                    description = "Query upcoming schedule or insert new business meetings",
+                    icon = Icons.Default.CalendarToday,
+                    accent = ElectricIndigo,
+                    actionButtonText = "List Events",
+                    onAction = {
+                        coroutineScope.launch {
+                            val result = mcpClient.executeTool("list_calendar_events", "{\"daysAhead\": 2}")
+                            activeResultDialog = Pair("Calendar Events", result)
+                        }
+                    }
+                )
+            }
+
+            item {
+                SystemHardwareCard(
+                    title = "Alarms & Production Timers",
+                    description = "Set wake-up alarms or countdown timers with skip-UI intent",
+                    icon = Icons.Default.Alarm,
+                    accent = AmberIndicGold,
+                    actionButtonText = "Set 7:00 AM Alarm",
+                    onAction = {
+                        coroutineScope.launch {
+                            val result = mcpClient.executeTool("set_alarm", "{\"hour\": 7, \"minute\": 0, \"message\": \"S25 Agent Morning Alarm\"}")
+                            activeResultDialog = Pair("Alarm Action", result)
+                        }
+                    }
+                )
+            }
+
+            item {
+                SystemHardwareCard(
+                    title = "System Clipboard Manager",
+                    description = "Read current copied clipboard buffer or copy text to device",
+                    icon = Icons.Default.ContentPaste,
+                    accent = SoftCyan,
+                    actionButtonText = "Read Clipboard",
+                    onAction = {
+                        coroutineScope.launch {
+                            val result = mcpClient.executeTool("get_clipboard_text", "{}")
+                            activeResultDialog = Pair("Clipboard Content", result)
+                        }
+                    }
+                )
+            }
+
+            item {
+                SystemHardwareCard(
+                    title = "Contacts Book Search",
+                    description = "Search phone contacts book by name or phone number",
+                    icon = Icons.Default.Contacts,
+                    accent = EmeraldSafeGreen,
+                    actionButtonText = "Search Contacts",
+                    onAction = {
+                        coroutineScope.launch {
+                            val result = mcpClient.executeTool("search_contacts", "{\"query\": \"Surat\"}")
+                            activeResultDialog = Pair("Contacts Query ('Surat')", result)
+                        }
+                    }
+                )
+            }
+
             // Registered MCP Tools Section
             if (availableTools.isNotEmpty()) {
                 item {

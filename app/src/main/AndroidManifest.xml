@@ -37,6 +37,12 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
 
+    <!-- Executive Suite: Calendar, Contacts, Alarms -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+
     <!-- Query Declarations for Target Apps -->
     <queries>
         <package android:name="com.whatsapp" />

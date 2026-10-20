@@ -12,6 +12,7 @@ class EmbeddedAndroidMcpServer(private val context: Context) {
 
     private val locationProvider = LocationProvider(context)
     val appBridge = InstalledAppMcpBridge(context)
+    val executiveBridge = ExecutiveToolsMcpBridge(context)
 
     fun listEmbeddedTools(): List<McpToolDefinition> {
         val hardwareTools = listOf(
@@ -38,12 +39,21 @@ class EmbeddedAndroidMcpServer(private val context: Context) {
             )
         )
 
-        return hardwareTools + appBridge.getToolDefinitions()
+        return hardwareTools + appBridge.getToolDefinitions() + executiveBridge.getToolDefinitions()
     }
 
     suspend fun executeTool(name: String, arguments: JsonObject): String {
         if (appBridge.handlesTool(name)) {
             return appBridge.executeTool(name, arguments)
+        }
+
+        val executiveToolNames = setOf(
+            "list_calendar_events", "create_calendar_event",
+            "search_contacts", "set_alarm", "start_timer",
+            "get_clipboard_text", "set_clipboard_text"
+        )
+        if (executiveToolNames.contains(name)) {
+            return executiveBridge.executeTool(name, arguments)
         }
 
         return when (name) {

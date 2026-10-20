@@ -7,7 +7,7 @@ enum class ExecutionTier {
 
 object SafetyGate {
     private val READ_ONLY_PATTERNS = listOf(
-        "get_", "read_", "search_", "query_", "inspect_", "check_"
+        "get_", "read_", "search_", "query_", "inspect_", "check_", "list_"
     )
 
     fun evaluate(toolName: String): ExecutionTier {

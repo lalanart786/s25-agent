@@ -11,7 +11,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -675,21 +676,39 @@ private fun IndicQuickSuggestionsBar(
     onSelectPrompt: (String) -> Unit,
     onTriggerApprovalTest: () -> Unit
 ) {
+    val scrollState = rememberScrollState()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .horizontalScroll(scrollState)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         SuggestionPill(
             label = "📍 સુરત ઓફિસ?",
             accent = SoftCyan,
-            onClick = { onSelectPrompt("મારી સુરત ઓફિસ પહોંચી ગયા?") }
+            onClick = { onSelectPrompt("મારી સુરત ઓફિસ નો રસ્તો બતાવ.") }
         )
         SuggestionPill(
             label = "📊 Zoho ઇન્વોઇસ",
             accent = AmberIndicGold,
             onClick = { onSelectPrompt("આજના પેન્ડિંગ Zoho Books ઇન્વોઇસ બતાવ.") }
+        )
+        SuggestionPill(
+            label = "📅 આજની ઇવેન્ટ્સ",
+            accent = ElectricIndigo,
+            onClick = { onSelectPrompt("આજનું કેલેન્ડર શું છે?") }
+        )
+        SuggestionPill(
+            label = "⏰ સવારે 7 નું એલાર્મ",
+            accent = AmberIndicGold,
+            onClick = { onSelectPrompt("સવારે 7:00 વાગ્યાનું એલાર્મ સેટ કર.") }
+        )
+        SuggestionPill(
+            label = "📋 ક્લિપબોર્ડ",
+            accent = SoftCyan,
+            onClick = { onSelectPrompt("ક્લિપબોર્ડ માં શું કોપી થયેલું છે?") }
         )
         SuggestionPill(
             label = "🔋 બેટરી",
