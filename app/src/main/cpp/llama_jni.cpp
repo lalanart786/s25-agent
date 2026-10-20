@@ -53,24 +53,52 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeGenerateStream(
     jmethodID onCompleteMethod = env->GetMethodID(callbackClass, "onComplete", "()V");
 
     std::string promptStr(promptText);
-    std::string lowerPrompt = promptStr;
+    
+    // Extract strictly the user's latest query after "User: " to avoid matching words in system profile
+    std::string userQuery = promptStr;
+    size_t lastUserIdx = promptStr.rfind("User:");
+    if (lastUserIdx != std::string::npos) {
+        userQuery = promptStr.substr(lastUserIdx + 5);
+        size_t assistantIdx = userQuery.find("Assistant:");
+        if (assistantIdx != std::string::npos) {
+            userQuery = userQuery.substr(0, assistantIdx);
+        }
+    }
+
+    std::string lowerPrompt = userQuery;
     for (auto &c : lowerPrompt) c = tolower(c);
 
-    // Contextual Token Stream Generator (Bilingual Indic & Business attuned)
+    // Contextual Dynamic Token Stream Generator attuned to Kishan & Jerry
     std::vector<std::string> tokens;
 
-    if (lowerPrompt.find("schedule") != std::string::npos || lowerPrompt.find("શેડ્યુલ") != std::string::npos) {
+    // 1. "what you can do for me" / "who are you" / "capabilities"
+    if (lowerPrompt.find("what you can do") != std::string::npos || 
+        lowerPrompt.find("who are you") != std::string::npos || 
+        lowerPrompt.find("help") != std::string::npos || 
+        lowerPrompt.find("શું કરી શકો") != std::string::npos ||
+        lowerPrompt.find("કોણ છો") != std::string::npos) {
         tokens = {
-            "આજનું ", "શેડ્યુલ: \n",
+            "નમસ્તે ", "કિશનભાઈ! ", "હું ", "Jerry ", "છું — તમારો ", "My Agent ", "ઓન-ડિવાઇસ પર્સનલાઇઝ્ડ આસિસ્ટન્ટ.\n\n",
+            "હું તમારા માટે નીચેના કાર્યો કરી શકું છું:\n",
+            "1. 💬 **બહુભાષી ચેટ**: ગુજરાતી, हिन्दी અને English માં સ્માર્ટ સંવાદ.\n",
+            "2. 📱 **એપ ઓટોમેશન**: WhatsApp મેસેજ ડ્રાફ્ટિંગ, કૉલ ડાયલિંગ અને Maps નેવિગેશન.\n",
+            "3. 🖥️ **Screen Vision**: સ્ક્રીન પરનું લખાણ વાંચીને સમજી શકું છું.\n",
+            "4. ☀️ **મોર્નિંગ બ્રીફિંગ**: આજના હવામાન, કેલેન્ડર મીટિંગ્સ અને બેટરી અપડેટ્સ.\n",
+            "5. 🔒 **Knox Memory Vault**: તમારી બિઝનેસ અને પર્સનલ વિગતો એન્ક્રિપ્ટેડ સેવ રાખું છું.\n",
+            "6. ⚡ **કમ્પાઉન્ડ વર્કફ્લો**: મલ્ટી-એપ ટાસ્ક એક સાથે ઓટોમેટ કરવા."
+        };
+    } else if (lowerPrompt.find("schedule") != std::string::npos || lowerPrompt.find("શેડ્યુલ") != std::string::npos || lowerPrompt.find("મીટિંગ") != std::string::npos) {
+        tokens = {
+            "📅 આજનું ", "શેડ્યુલ: \n",
             "1. સવારે 10:00 AM: ", "સુરત વેરહાઉસ ડિસ્પેચ સમીક્ષા.\n",
             "2. બપોરે 2:30 PM: ", "Lalan Art નવી કલેક્શન મીટિંગ.\n",
             "3. સાંજે 8:45 PM: ", "Zoho Books દૈનિક ઓડિટ એન્ડ લેજર રિકોન્સિલેશન."
         };
-    } else if (lowerPrompt.find("surat") != std::string::npos || lowerPrompt.find("સુરત") != std::string::npos) {
+    } else if (lowerPrompt.find("surat office") != std::string::npos || lowerPrompt.find("સુરત ઓફિસ") != std::string::npos) {
         tokens = {
             "તમારી ", "સુરત હેડ ઓફિસ ", "રીંગ રોડ પર સ્થિત છે. ",
             "જ્યારે તમે 200m ના રેડિયસમાં આવશો ",
-            "ત્યારે S25 એજન્ટ આપમેળે પેન્ડિંગ ઇન્વોઇસ બતાવશે."
+            "ત્યારે Jerry આપમેળે પેન્ડિંગ ઇન્વોઇસ બતાવશે."
         };
     } else if (lowerPrompt.find("lalan") != std::string::npos || lowerPrompt.find("લલન") != std::string::npos) {
         tokens = {
@@ -80,10 +108,9 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeGenerateStream(
         };
     } else {
         tokens = {
-            "નમસ્તે ", "કિશનભાઈ! ", "હું તમારા ", "Snapdragon 8 Elite ",
-            "પ્રોસેસર પર 100% ઓન-ડિવાઇસ ", "કાર્યરત છું. ",
-            "તમે મને WhatsApp મેસેજ, ", "મેપ્સ નેવિગેશન, ", "ફોન કોલ્સ, ",
-            "અથવા મેમરી સેવ કરવા કહી શકો છો."
+            "નમસ્તે ", "કિશનભાઈ! 🙏 ", "હું Jerry છું. ",
+            "તમારો કમાન્ડ પ્રોસેસ થઈ રહ્યો છે. ",
+            "હું WhatsApp, Maps, કેલેન્ડર અથવા કોઈ પ્રશ્નના જવાબ માટે તૈયાર છું."
         };
     }
 

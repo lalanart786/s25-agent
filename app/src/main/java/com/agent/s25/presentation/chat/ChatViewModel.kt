@@ -36,6 +36,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
 
     val memoryManager: MemoryManager? = db?.let { MemoryManager(it) }
     val mcpClient = McpClient(application)
+    val openRouterClient = com.agent.s25.data.cloud.OpenRouterClient(application)
     val toolRegistry: ToolRegistry? = memoryManager?.let { ToolRegistry(mcpClient, it) }
     val voiceProfileManager = com.agent.s25.domain.indic.SpeakerVoiceProfileManager(application)
     private val llamaEngine = LlamaEngine()
@@ -163,15 +164,26 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             val agentMsg = ChatMessage(sender = MessageSender.AGENT, text = "")
             _messages.value = _messages.value + agentMsg
 
-            _liveActionStep.value = "Snapdragon 8 Elite • Generating response..."
             val accumulatedText = StringBuilder()
-            llamaEngine.generateStream(fullPrompt).collect { token ->
-                accumulatedText.append(token)
-                _messages.value = _messages.value.dropLast(1) + agentMsg.copy(text = accumulatedText.toString())
+
+            // Check if OpenRouter cloud fallback is configured
+            if (openRouterClient.hasApiKey()) {
+                _liveActionStep.value = "OpenRouter AI (${openRouterClient.selectedModel}) • Generating..."
+                val sysPrompt = "You are Jerry, an elite, highly intelligent personal AI agent for Kishan (Founder of Lalan Art, Surat). Fluent in Gujarati, Hindi, and English. Keep responses direct, helpful, and concise.\n$profileHeader"
+                openRouterClient.streamChatCompletion(userText, sysPrompt).collect { token ->
+                    accumulatedText.append(token)
+                    _messages.value = _messages.value.dropLast(1) + agentMsg.copy(text = accumulatedText.toString())
+                }
+            } else {
+                _liveActionStep.value = "Snapdragon 8 Elite • Generating response..."
+                llamaEngine.generateStream(fullPrompt).collect { token ->
+                    accumulatedText.append(token)
+                    _messages.value = _messages.value.dropLast(1) + agentMsg.copy(text = accumulatedText.toString())
+                }
             }
 
             _isGenerating.value = false
-            _liveActionStep.value = "Snapdragon 8 Elite • Idle"
+            _liveActionStep.value = "Jerry Intelligence • Idle"
 
             // 3. Post-process response to see if model generated a JSON tool call
             checkAndHandleModelToolCall(accumulatedText.toString())

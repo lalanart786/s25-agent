@@ -29,6 +29,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agent.s25.data.model.ChatMessage
@@ -43,6 +47,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
     val loadedModelName by viewModel.loadedModelName.collectAsState()
     val liveActionStep by viewModel.liveActionStep.collectAsState()
     var inputText by remember { mutableStateOf("") }
+    var showApiKeyDialog by remember { mutableStateOf(false) }
 
     // Direct File Picker for .gguf model files
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -54,6 +59,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
             .background(AmoledBackground)
     ) {
         // Meta Muse Header with Avatar & Model Switcher
@@ -61,8 +67,10 @@ fun ChatScreen(viewModel: ChatViewModel) {
             loadedModelName = loadedModelName,
             isGenerating = isGenerating,
             isListening = isListening,
+            hasCloudKey = viewModel.openRouterClient.hasApiKey(),
             onSelectModel = { filePickerLauncher.launch(arrayOf("*/*")) },
-            onRescan = { viewModel.refreshScan() }
+            onRescan = { viewModel.refreshScan() },
+            onOpenCloudSettings = { showApiKeyDialog = true }
         )
 
         // Live 3-Layer Telemetry Status Banner
@@ -123,6 +131,67 @@ fun ChatScreen(viewModel: ChatViewModel) {
             }
         )
     }
+
+    // Cloud OpenRouter API Key Dialog
+    if (showApiKeyDialog) {
+        var tempKey by remember { mutableStateOf(viewModel.openRouterClient.getApiKey() ?: "") }
+        var selectedModel by remember { mutableStateOf(viewModel.openRouterClient.selectedModel) }
+
+        AlertDialog(
+            onDismissRequest = { showApiKeyDialog = false },
+            containerColor = AmoledSurface,
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Cloud, contentDescription = null, tint = SoftCyan, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("OpenRouter Cloud AI", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Connect Jerry to Claude 3.5, DeepSeek R1, GPT-4o, or Llama 3.3 for high-speed bilingual responses when GGUF is loading.",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+
+                    OutlinedTextField(
+                        value = tempKey,
+                        onValueChange = { tempKey = it },
+                        label = { Text("OpenRouter API Key", color = TextSecondary) },
+                        placeholder = { Text("sk-or-v1-...", color = TextMuted) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = SoftCyan,
+                            unfocusedBorderColor = AmoledGlassBorder
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text("Selected Model: $selectedModel", color = AmberIndicGold, fontSize = 11.sp)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.openRouterClient.saveApiKey(tempKey)
+                        viewModel.openRouterClient.selectedModel = selectedModel
+                        showApiKeyDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ElectricIndigo)
+                ) {
+                    Text("Save & Activate", color = TextPrimary, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showApiKeyDialog = false }) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -130,8 +199,10 @@ private fun MetaMuseHeader(
     loadedModelName: String?,
     isGenerating: Boolean,
     isListening: Boolean,
+    hasCloudKey: Boolean,
     onSelectModel: () -> Unit,
-    onRescan: () -> Unit
+    onRescan: () -> Unit,
+    onOpenCloudSettings: () -> Unit
 ) {
     Surface(
         color = AmoledSurface,
@@ -147,7 +218,7 @@ private fun MetaMuseHeader(
             // Left: Glowing Jerry Quantum Orb Avatar + Title
             Row(verticalAlignment = Alignment.CenterVertically) {
                 JerryQuantumOrbAvatar(
-                    isActive = loadedModelName != null,
+                    isActive = loadedModelName != null || hasCloudKey,
                     isBusy = isGenerating || isListening
                 )
 
@@ -180,19 +251,49 @@ private fun MetaMuseHeader(
                     }
 
                     Text(
-                        text = if (loadedModelName != null) loadedModelName else "No GGUF Active • Tap Select",
-                        color = if (loadedModelName != null) TextSecondary else AmberIndicGold,
+                        text = when {
+                            hasCloudKey -> "OpenRouter Cloud AI Active"
+                            loadedModelName != null -> loadedModelName
+                            else -> "No Model • Tap Select / Cloud"
+                        },
+                        color = if (hasCloudKey) EmeraldSafeGreen else if (loadedModelName != null) TextSecondary else AmberIndicGold,
                         fontSize = 11.sp,
                         maxLines = 1
                     )
                 }
             }
 
-            // Right: Model Switch Pill & Rescan
+            // Right: Model Switch Pill, Cloud API Key, & Rescan
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // Cloud Key Button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (hasCloudKey) EmeraldSafeGreen.copy(alpha = 0.2f) else AmoledSurfaceVariant)
+                        .border(1.dp, if (hasCloudKey) EmeraldSafeGreen.copy(alpha = 0.5f) else AmoledGlassBorder, RoundedCornerShape(16.dp))
+                        .clickable(onClick = onOpenCloudSettings)
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Cloud,
+                            contentDescription = "Cloud AI",
+                            tint = if (hasCloudKey) EmeraldSafeGreen else TextSecondary,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = if (hasCloudKey) "Cloud ON" else "API Key",
+                            color = if (hasCloudKey) EmeraldSafeGreen else TextSecondary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
@@ -799,10 +900,12 @@ private fun FloatingInputBar(
     onSend: () -> Unit,
     onMicClick: () -> Unit
 ) {
+    val focusManager = LocalFocusManager.current
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Box(
             modifier = Modifier
@@ -810,13 +913,13 @@ private fun FloatingInputBar(
                 .clip(RoundedCornerShape(28.dp))
                 .background(AmoledSurface)
                 .border(1.dp, AmoledGlassBorder, RoundedCornerShape(28.dp))
-                .padding(horizontal = 10.dp, vertical = 6.dp)
+                .padding(horizontal = 10.dp, vertical = 4.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Text Field
+                // Text Field with IME Action Send & Focus Management
                 TextField(
                     value = inputText,
                     onValueChange = onTextChange,
@@ -828,6 +931,16 @@ private fun FloatingInputBar(
                             fontSize = 13.sp
                         )
                     },
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = if (inputText.isNotBlank()) ImeAction.Send else ImeAction.Default
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            if (inputText.isNotBlank() && !isGenerating) {
+                                onSend()
+                            }
+                        }
+                    ),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -859,7 +972,12 @@ private fun FloatingInputBar(
                             if (inputText.isNotBlank() && !isGenerating) MuseElectricGradient
                             else Brush.linearGradient(listOf(AmoledSurfaceVariant, AmoledSurfaceVariant))
                         )
-                        .clickable(enabled = inputText.isNotBlank() && !isGenerating, onClick = onSend),
+                        .clickable(
+                            enabled = inputText.isNotBlank() && !isGenerating,
+                            onClick = {
+                                onSend()
+                            }
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
