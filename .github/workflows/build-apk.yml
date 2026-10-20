@@ -1,0 +1,65 @@
+name: Build S25 Agent APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Compile Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Licenses & Install NDK / CMake
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager --install "ndk;26.1.10909125" "cmake;3.22.1" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate Gradle Wrapper
+        run: |
+          gradle wrapper --gradle-version 8.7
+
+      - name: Build Debug APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: S25-Ultra-Personal-Agent-Debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Release APK
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        with:
+          tag_name: release-${{ github.run_number }}
+          name: S25 Ultra Agent Build #${{ github.run_number }}
+          body: |
+            ### 📱 S25 Ultra Personal Agent Build #${{ github.run_number }}
+            Direct APK download for your Samsung Galaxy S25 Ultra.
+            - **Engine**: On-Device Snapdragon 8 Elite (llama.cpp + Vulkan)
+            - **Languages**: Native Gujarati (ગુજરાતી), Hindi (हिन्दी), English
+            - **Security**: Knox StrongBox AES-256 Memory Vault
+            - **Tools**: Model Context Protocol (MCP) + Geofences
+          files: app/build/outputs/apk/debug/app-debug.apk

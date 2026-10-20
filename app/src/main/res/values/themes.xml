@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.S25Agent" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#0D0D11</item>
+        <item name="android:navigationBarColor">#0D0D11</item>
+    </style>
+</resources>
