@@ -53,7 +53,7 @@
 
         <!-- Android Default Digital Assistant Service (Side-Key Long Press) -->
         <service
-            android:name=".service.AgentAssistantSessionService"
+            android:name=".service.AgentAssistantService"
             android:permission="android.permission.BIND_VOICE_INTERACTION"
             android:exported="true">
             <meta-data
@@ -63,6 +63,11 @@
                 <action android:name="android.service.voice.VoiceInteractionService" />
             </intent-filter>
         </service>
+
+        <service
+            android:name=".service.AgentAssistantSessionService"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:exported="true" />
 
         <!-- Persistent Background & Geofence Service -->
         <service

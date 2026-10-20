@@ -3,5 +3,4 @@
     android:sessionService="com.agent.s25.service.AgentAssistantSessionService"
     android:recognitionService="com.agent.s25.service.AgentAssistantSessionService"
     android:supportsAssist="true"
-    android:supportsLaunchFromKeyguard="true"
     android:supportsLocalInteraction="true" />
