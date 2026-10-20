@@ -144,9 +144,9 @@ private fun MetaMuseHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Left: Glowing Meta Muse Avatar + Title
+            // Left: Glowing Jerry Quantum Orb Avatar + Title
             Row(verticalAlignment = Alignment.CenterVertically) {
-                MetaMuseAgentAvatar(
+                JerryQuantumOrbAvatar(
                     isActive = loadedModelName != null,
                     isBusy = isGenerating || isListening
                 )
@@ -156,20 +156,21 @@ private fun MetaMuseHeader(
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "S25 Muse Agent",
+                            text = "Jerry",
                             color = TextPrimary,
-                            fontSize = 16.sp,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(ElectricIndigo.copy(alpha = 0.2f))
+                                .background(ElectricIndigo.copy(alpha = 0.25f))
+                                .border(1.dp, ElectricIndigo.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "ALEX CORNELL SPEC",
+                                text = "MY AGENT",
                                 color = SoftCyan,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold,
@@ -234,24 +235,24 @@ private fun MetaMuseHeader(
 }
 
 @Composable
-private fun MetaMuseAgentAvatar(isActive: Boolean, isBusy: Boolean) {
-    val infiniteTransition = rememberInfiniteTransition(label = "avatarPulse")
+private fun JerryQuantumOrbAvatar(isActive: Boolean, isBusy: Boolean) {
+    val infiniteTransition = rememberInfiniteTransition(label = "jerryOrbPulse")
 
     val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1.0f,
-        targetValue = if (isBusy) 1.35f else 1.15f,
+        initialValue = 0.95f,
+        targetValue = if (isBusy) 1.25f else 1.10f,
         animationSpec = infiniteRepeatable(
-            animation = tween(if (isBusy) 800 else 2000, easing = FastOutSlowInEasing),
+            animation = tween(if (isBusy) 800 else 1600, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulseScale"
     )
 
     val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = if (isBusy) 0.6f else 0.35f,
-        targetValue = 0.05f,
+        initialValue = if (isBusy) 0.65f else 0.35f,
+        targetValue = 0.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(if (isBusy) 800 else 2000, easing = FastOutSlowInEasing),
+            animation = tween(if (isBusy) 800 else 1600, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulseAlpha"
@@ -259,13 +260,13 @@ private fun MetaMuseAgentAvatar(isActive: Boolean, isBusy: Boolean) {
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(38.dp)
+        modifier = Modifier.size(40.dp)
     ) {
-        // Outer pulsing ring
+        // Outer pulsing cybernetic field
         if (isActive) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(40.dp)
                     .scale(pulseScale)
                     .clip(CircleShape)
                     .background(
@@ -274,27 +275,33 @@ private fun MetaMuseAgentAvatar(isActive: Boolean, isBusy: Boolean) {
             )
         }
 
-        // Inner avatar core
+        // Concentric Quantum Orbital Sphere
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(34.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
                         colors = listOf(
                             ElectricIndigo,
-                            Color(0xFF1E1B4B)
+                            Color(0xFF1E1B4B),
+                            Color(0xFF090A0F)
                         )
                     )
                 )
-                .border(1.dp, SoftCyan.copy(alpha = 0.7f), CircleShape),
+                .border(1.5.dp, if (isBusy) SoftCyan else ElectricIndigo.copy(alpha = 0.8f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                Icons.Default.AutoAwesome,
-                contentDescription = "Muse Avatar",
-                tint = if (isActive) TextPrimary else TextMuted,
-                modifier = Modifier.size(17.dp)
+            // Luminous 3D Holographic Core
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(Color.White, SoftCyan, ElectricIndigo)
+                        )
+                    )
             )
         }
     }
@@ -400,7 +407,7 @@ private fun LiveThreeLayerStatusBanner(
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = "Snapdragon 8 Elite • 6T • Vulkan",
+                    text = "Jerry Voiceprint • SD 8 Elite • Vulkan",
                     color = SoftCyan,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Medium,
@@ -556,14 +563,14 @@ private fun MetaMuseApprovalCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.WarningAmber,
+                        Icons.Default.Security,
                         contentDescription = null,
                         tint = AmberIndicGold,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Action Approval Required",
+                        text = "Final-Stage Permission Check",
                         color = AmberIndicGold,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
@@ -577,7 +584,7 @@ private fun MetaMuseApprovalCard(
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "PRIVILEGED",
+                        text = "FINAL GATE",
                         color = AmberIndicGold,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold
@@ -588,7 +595,7 @@ private fun MetaMuseApprovalCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "The agent proposes to execute the following tool action on your device. Review the parameters before proceeding:",
+                text = "કિશનભાઈ, શું હું આ બદલાવ કન્ફર્મ કરું? Jerry requires your explicit approval before changing, editing, or deleting anything on your phone:",
                 color = TextSecondary,
                 fontSize = 12.sp,
                 lineHeight = 16.sp
@@ -616,12 +623,12 @@ private fun MetaMuseApprovalCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Action Buttons: Confirm & Execute (Green) / Reject (Outlined)
+            // Action Buttons: Authorize & Execute (Green) / Deny & Cancel (Outlined)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Confirm & Execute Button
+                // Authorize Button
                 Button(
                     onClick = onConfirm,
                     modifier = Modifier.weight(1f),
@@ -636,14 +643,14 @@ private fun MetaMuseApprovalCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Confirm & Execute",
+                        text = "Authorize & Execute",
                         color = TextPrimary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                // Reject Button
+                // Deny Button
                 OutlinedButton(
                     onClick = onReject,
                     modifier = Modifier.weight(0.7f),
@@ -661,7 +668,7 @@ private fun MetaMuseApprovalCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Reject",
+                        text = "Deny & Cancel",
                         color = DangerRed,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold

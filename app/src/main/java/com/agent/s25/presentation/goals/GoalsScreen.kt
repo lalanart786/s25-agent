@@ -138,6 +138,7 @@ fun GoalsScreen(db: MemoryDatabase? = null) {
 
     var selectedCategory by remember { mutableStateOf(GoalCategory.ALL) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var goalToDelete by remember { mutableStateOf<GoalItem?>(null) }
 
     val filteredGoals = if (selectedCategory == GoalCategory.ALL) {
         goals
@@ -312,16 +313,7 @@ fun GoalsScreen(db: MemoryDatabase? = null) {
                         }
                     },
                     onDelete = {
-                        if (db != null) {
-                            coroutineScope.launch {
-                                val longId = goal.id.toLongOrNull()
-                                if (longId != null) {
-                                    db.goalDao().deleteGoal(longId)
-                                }
-                            }
-                        } else {
-                            localGoals = localGoals.filterNot { it.id == goal.id }
-                        }
+                        goalToDelete = goal
                     }
                 )
             }
@@ -329,6 +321,62 @@ fun GoalsScreen(db: MemoryDatabase? = null) {
                 Spacer(modifier = Modifier.height(30.dp))
             }
         }
+    }
+
+    // Final-Stage Permission Check: Delete Goal Dialog
+    goalToDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { goalToDelete = null },
+            containerColor = AmoledSurface,
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Security, contentDescription = null, tint = DangerRed, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Final-Stage Permission Check", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Column {
+                    Text(
+                        "કિશનભાઈ, શું હું આ બદલાવ કન્ફર્મ કરું?",
+                        color = AmberIndicGold,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "Are you sure you want Jerry to delete proactive mission \"${target.title}\"?",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (db != null) {
+                            coroutineScope.launch {
+                                val longId = target.id.toLongOrNull()
+                                if (longId != null) {
+                                    db.goalDao().deleteGoal(longId)
+                                }
+                            }
+                        } else {
+                            localGoals = localGoals.filterNot { it.id == target.id }
+                        }
+                        goalToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = DangerRed)
+                ) {
+                    Text("Authorize Deletion", color = TextPrimary, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { goalToDelete = null }) {
+                    Text("Deny & Cancel", color = TextSecondary)
+                }
+            }
+        )
     }
 
     // Add Goal Dialog

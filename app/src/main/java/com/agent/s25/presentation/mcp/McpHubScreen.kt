@@ -203,7 +203,7 @@ fun McpHubScreen(mcpClient: McpClient) {
             item {
                 SectionHeader(
                     title = "PHONE APP AUTOMATION",
-                    subtitle = "Apps the S25 Agent can autonomously interact with via MCP"
+                    subtitle = "Apps Jerry can autonomously interact with via MCP"
                 )
             }
 
@@ -330,7 +330,7 @@ fun McpHubScreen(mcpClient: McpClient) {
                     actionButtonText = "Set 7:00 AM Alarm",
                     onAction = {
                         coroutineScope.launch {
-                            val result = mcpClient.executeTool("set_alarm", "{\"hour\": 7, \"minute\": 0, \"message\": \"S25 Agent Morning Alarm\"}")
+                            val result = mcpClient.executeTool("set_alarm", "{\"hour\": 7, \"minute\": 0, \"message\": \"Jerry Morning Alarm\"}")
                             activeResultDialog = Pair("Alarm Action", result)
                         }
                     }
@@ -435,7 +435,7 @@ fun McpHubScreen(mcpClient: McpClient) {
                     actionButtonText = "Send Telegram",
                     onAction = {
                         coroutineScope.launch {
-                            val result = mcpClient.executeTool("send_telegram_message", "{\"username\": \"Kmiyani\", \"message\": \"S25 Agent Live Test from Surat Office.\"}")
+                            val result = mcpClient.executeTool("send_telegram_message", "{\"username\": \"Kmiyani\", \"message\": \"Jerry Live Test from Surat Office.\"}")
                             activeResultDialog = Pair("Telegram Action", result)
                         }
                     }
@@ -593,7 +593,7 @@ private fun AccessibilityStatusCard(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Enable the S25 Agent Accessibility Service to allow autonomous app interactions, screen reading, and UI automation without root.",
+                text = "Enable the Jerry Autonomous Accessibility Service to allow autonomous app interactions, screen reading, and UI automation without root.",
                 color = TextSecondary,
                 fontSize = 12.sp,
                 lineHeight = 17.sp

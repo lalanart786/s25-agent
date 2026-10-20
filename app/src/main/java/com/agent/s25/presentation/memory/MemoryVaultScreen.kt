@@ -353,20 +353,33 @@ fun MemoryVaultScreen(db: MemoryDatabase) {
         )
     }
 
-    // Delete Confirmation Dialog
+    // Final-Stage Delete Confirmation Dialog
     memoryToDelete?.let { target ->
         AlertDialog(
             onDismissRequest = { memoryToDelete = null },
             containerColor = AmoledSurface,
             title = {
-                Text("Delete Memory?", color = TextPrimary, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Security, contentDescription = null, tint = DangerRed, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Final-Stage Permission Check", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             },
             text = {
-                Text(
-                    "Are you sure you want to permanently remove \"${target.key}\" from the Knox vault?",
-                    color = TextSecondary,
-                    fontSize = 13.sp
-                )
+                Column {
+                    Text(
+                        "કિશનભાઈ, શું હું આ બદલાવ કન્ફર્મ કરું?",
+                        color = AmberIndicGold,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "Are you sure you want Jerry to permanently delete \"${target.key}\" from the Knox Hardware Vault?",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
             },
             confirmButton = {
                 Button(
@@ -378,12 +391,12 @@ fun MemoryVaultScreen(db: MemoryDatabase) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = DangerRed)
                 ) {
-                    Text("Delete", color = TextPrimary)
+                    Text("Authorize Deletion", color = TextPrimary, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { memoryToDelete = null }) {
-                    Text("Cancel", color = TextSecondary)
+                OutlinedButton(onClick = { memoryToDelete = null }) {
+                    Text("Deny & Cancel", color = TextSecondary)
                 }
             }
         )

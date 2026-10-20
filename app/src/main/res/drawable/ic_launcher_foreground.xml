@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Outer Quantum Orbital Ring -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="1.5"
+        android:strokeAlpha="0.4"
+        android:fillColor="#00000000"
+        android:pathData="M54,54m-38,0a38,38 0,1 1,76 0a38,38 0,1 1,-76 0" />
+
+    <!-- Secondary Elliptical Orbital Ring (Tilted 45 deg) -->
+    <path
+        android:strokeColor="#6366F1"
+        android:strokeWidth="2.0"
+        android:strokeAlpha="0.7"
+        android:fillColor="#00000000"
+        android:pathData="M26,36 C34,22 74,22 82,36 C90,50 82,72 54,72 C26,72 18,50 26,36 Z" />
+
+    <!-- Tertiary Elliptical Orbital Ring (Opposite Axis) -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="1.8"
+        android:strokeAlpha="0.6"
+        android:fillColor="#00000000"
+        android:pathData="M26,72 C18,58 26,36 54,36 C82,36 90,58 82,72 C74,86 34,86 26,72 Z" />
+
+    <!-- Luminous Quantum Orb Body (Outer Glow) -->
+    <path
+        android:fillColor="#1E1B4B"
+        android:fillAlpha="0.8"
+        android:pathData="M54,54m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
+
+    <!-- Luminous Quantum Orb Core -->
+    <path
+        android:fillColor="#4F46E5"
+        android:fillAlpha="0.95"
+        android:pathData="M54,54m-16,0a16,16 0,1 1,32 0a16,16 0,1 1,-32 0" />
+
+    <!-- Glowing Core Center -->
+    <path
+        android:fillColor="#38BDF8"
+        android:fillAlpha="0.9"
+        android:pathData="M54,54m-9,0a9,9 0,1 1,18 0a9,9 0,1 1,-18 0" />
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.95"
+        android:pathData="M54,54m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+
+    <!-- Continuous Awareness Acoustic Pulse Waveforms -->
+    <!-- Left Pulses -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:pathData="M43,49 L43,59" />
+    <path
+        android:strokeColor="#818CF8"
+        android:strokeWidth="2.0"
+        android:strokeLineCap="round"
+        android:pathData="M37,51 L37,57" />
+
+    <!-- Right Pulses -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:pathData="M65,49 L65,59" />
+    <path
+        android:strokeColor="#818CF8"
+        android:strokeWidth="2.0"
+        android:strokeLineCap="round"
+        android:pathData="M71,51 L71,57" />
+
+    <!-- Orbital Energy Node (Satellite Particle) -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M78,32m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M30,76m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" />
+
+</vector>

@@ -1,8 +1,9 @@
 <resources>
-    <string name="app_name">S25 Personal Agent</string>
-    <string name="assistant_service_name">S25 Indic Digital Assistant</string>
-    <string name="channel_name">S25 Agent Background Service</string>
-    <string name="channel_description">Maintains on-device geofences and silent memory sync</string>
-    <string name="accessibility_service_name">S25 Autonomous Screen Automation</string>
-    <string name="accessibility_service_description">Allows S25 Personal Agent to autonomously navigate apps, read on-screen text, and assist with actions</string>
+    <string name="app_name">My Agent</string>
+    <string name="agent_name">Jerry</string>
+    <string name="assistant_service_name">Jerry - My Agent</string>
+    <string name="channel_name">Jerry Background Service</string>
+    <string name="channel_description">Maintains on-device geofences, Knox memory sync, and voice wake</string>
+    <string name="accessibility_service_name">Jerry Autonomous Screen Automation</string>
+    <string name="accessibility_service_description">Allows Jerry to autonomously navigate apps, read on-screen text, and assist with actions</string>
 </resources>

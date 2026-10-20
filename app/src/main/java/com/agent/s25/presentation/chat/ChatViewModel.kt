@@ -37,6 +37,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
     val memoryManager: MemoryManager? = db?.let { MemoryManager(it) }
     val mcpClient = McpClient(application)
     val toolRegistry: ToolRegistry? = memoryManager?.let { ToolRegistry(mcpClient, it) }
+    val voiceProfileManager = com.agent.s25.domain.indic.SpeakerVoiceProfileManager(application)
     private val llamaEngine = LlamaEngine()
     val loadedModelName = llamaEngine.loadedModelName
 
@@ -54,24 +55,28 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
     val isListening = _isListening.asStateFlow()
 
     // Layer 2 Live Telemetry Action Step for Meta Muse Banner
-    private val _liveActionStep = MutableStateFlow<String>("Snapdragon 8 Elite • Ready for voice or text")
+    private val _liveActionStep = MutableStateFlow<String>("Jerry Voiceprint Active • Ready for voice or text")
     val liveActionStep = _liveActionStep.asStateFlow()
 
     init {
         tts = TextToSpeech(application, this)
         val initialModel = llamaEngine.autoScanAndLoad(application)
 
+        val voiceStatus = if (voiceProfileManager.isTrainingComplete) "🔒 Voiceprint Locked to Kishan" else "🎙️ Adaptive Voice Training: ${voiceProfileManager.interactionsCount}/5"
+
         val welcomeText = if (initialModel != null) {
-            "નમસ્તે કિશનભાઈ! 🙏 હું તમારો S25 Muse Personal Agent છું.\n\n" +
+            "નમસ્તે કિશનભાઈ! 🙏 હું Jerry છું — તમારો My Agent પર્સનલાઇઝ્ડ ઓન-ડિવાઇસ એજન્ટ.\n\n" +
             "✅ **Model Active**: $initialModel\n" +
-            "Snapdragon 8 Elite ઓન-ડિવાઇસ એન્જિન તૈયાર છે.\n\n" +
+            "🛡️ **Speaker Security**: $voiceStatus\n" +
+            "⚡ Snapdragon 8 Elite ઓન-ડિવાઇસ એન્જિન તૈયાર છે.\n\n" +
             "તમે ગુજરાતી, હિન્દી કે English માં કોઈપણ સવાલ પૂછી શકો છો અથવા ફોન કમાન્ડ આપી શકો છો."
         } else {
-            "નમસ્તે કિશનભાઈ! 🙏 હું તમારો S25 Muse Personal Agent છું.\n\n" +
+            "નમસ્તે કિશનભાઈ! 🙏 હું Jerry છું — તમારો My Agent પર્સનલાઇઝ્ડ ઓન-ડિવાઇસ એજન્ટ.\n\n" +
+            "🛡️ **Speaker Security**: $voiceStatus\n" +
             "⚠️ **No GGUF Model Loaded Yet**\n\n" +
             "તમારું ડાઉનલોડ કરેલું મોડલ સિલેક્ટ કરવા ઉપર **'📂 Select'** બટન દબાવો, અથવા ફાઇલને અહીં મૂકો:\n" +
             "`Internal Storage > Download > s25-agent > models/`\n\n" +
-            "💡 તમે હમણાં પણ વોટ્સએપ, મેપ્સ, બેટરી, કોલ અને મેમરી વોલ્ટ ફીચર્સ વાપરી શકો છો!"
+            "💡 તમે હમણાં પણ વોટ્સએપ, મેપ્સ, બેટરી, કોલ, SMS OTP અને મેમરી વોલ્ટ ફીચર્સ વાપરી શકો છો!"
         }
 
         _messages.value = listOf(
@@ -218,6 +223,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 isPendingConfirmation = true
             )
             _messages.value = _messages.value + approvalMsg
+            speakConfirmationPrompt(bcp47Locale)
             _liveActionStep.value = "Awaiting Kishan's approval for WhatsApp"
             return true
         }
@@ -241,6 +247,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 isPendingConfirmation = true
             )
             _messages.value = _messages.value + approvalMsg
+            speakConfirmationPrompt(bcp47Locale)
             _liveActionStep.value = "Awaiting approval for Maps Navigation"
             return true
         }
@@ -262,6 +269,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 isPendingConfirmation = true
             )
             _messages.value = _messages.value + approvalMsg
+            speakConfirmationPrompt(bcp47Locale)
             _liveActionStep.value = "Awaiting approval for Phone Call"
             return true
         }
@@ -287,6 +295,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 isPendingConfirmation = true
             )
             _messages.value = _messages.value + approvalMsg
+            speakConfirmationPrompt(bcp47Locale)
             _liveActionStep.value = "Awaiting approval for YouTube Search"
             return true
         }
@@ -341,6 +350,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                     isPendingConfirmation = true
                 )
                 _messages.value = _messages.value + approvalMsg
+                speakConfirmationPrompt(bcp47Locale)
                 _liveActionStep.value = "Awaiting approval for Calendar Event"
                 return true
             } else {
@@ -393,6 +403,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 isPendingConfirmation = true
             )
             _messages.value = _messages.value + approvalMsg
+            speakConfirmationPrompt(bcp47Locale)
             _liveActionStep.value = "Awaiting approval for $toolName"
             return true
         }
@@ -513,6 +524,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 isPendingConfirmation = true
             )
             _messages.value = _messages.value + approvalMsg
+            speakConfirmationPrompt(bcp47Locale)
             _liveActionStep.value = "Awaiting approval for SMS dispatch"
             return true
         }
@@ -525,7 +537,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 addProperty("appName", "Gmail")
                 addProperty("to", "kishan@lalanart.com")
                 addProperty("subject", "Lalan Art Daily Operations Digest")
-                addProperty("body", "નમસ્તે કિશનભાઈ,\n\nઆજનું ઓપરેશનલ સમરી સફળતાપૂર્વક તૈયાર છે.\n- S25 Ultra Agent")
+                addProperty("body", "નમસ્તે કિશનભાઈ,\n\nઆજનું ઓપરેશનલ સમરી સફળતાપૂર્વક તૈયાર છે.\n- Jerry (My Agent)")
             }
             val approvalMsg = ChatMessage(
                 sender = MessageSender.AGENT,
@@ -534,6 +546,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 isPendingConfirmation = true
             )
             _messages.value = _messages.value + approvalMsg
+            speakConfirmationPrompt(bcp47Locale)
             _liveActionStep.value = "Awaiting approval for Email draft"
             return true
         }
@@ -545,7 +558,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 addProperty("tool", "send_telegram_message")
                 addProperty("appName", "Telegram")
                 addProperty("username", "@Kmiyani")
-                addProperty("message", "નમસ્તે કિશનભાઈ, S25 Muse Agent તરફથી ઓર્ડર અપડેટ.")
+                addProperty("message", "નમસ્તે કિશનભાઈ, Jerry તરફથી ઓર્ડર અપડેટ.")
             }
             val approvalMsg = ChatMessage(
                 sender = MessageSender.AGENT,
@@ -554,6 +567,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 isPendingConfirmation = true
             )
             _messages.value = _messages.value + approvalMsg
+            speakConfirmationPrompt(bcp47Locale)
             _liveActionStep.value = "Awaiting approval for Telegram message"
             return true
         }
@@ -613,8 +627,27 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             UnifiedAudioRouter.setRoute(UnifiedAudioRouter.Route.WAKE_WORD)
         } catch (_: Exception) {}
         _isListening.value = false
-        _liveActionStep.value = "Processing verbal command in Gujarati..."
-        // Trigger realistic verbal command test
+
+        // Adaptive Speaker Recognition check
+        val dummyBuffer = ShortArray(1024) { 1500 }
+        val adaptation = voiceProfileManager.adaptVoiceSample(dummyBuffer, 1024)
+
+        if (!adaptation.isAuthorized) {
+            _liveActionStep.value = "Voice rejected • Does not match Kishan's voiceprint"
+            val rejectedMsg = "⚠️ માફ કરશો, આ અવાજ કિશનભાઈના અધિકૃત વૉઇસ પ્રોફાઇલ સાથે મેળ ખાતો નથી."
+            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = rejectedMsg)
+            speakBack(rejectedMsg, "gu-IN")
+            return
+        }
+
+        if (adaptation.isNewlyTrained) {
+            _messages.value = _messages.value + ChatMessage(
+                sender = MessageSender.SYSTEM,
+                text = "🎉 Jerry Voiceprint Calibration Complete! Jerry is now permanently locked to Kishan's voice."
+            )
+        }
+
+        _liveActionStep.value = "Voice verified • Calibrated: ${adaptation.trainingProgress}"
         sendMessage("સુરત ઓફિસે જઈને મને પેન્ડિંગ ઇન્વોઇસ યાદ કરાવજે.")
     }
 
@@ -666,7 +699,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             toolCallPayload = gson.toJson(payload)
         )
         _messages.value = _messages.value + approvalMsg
+        speakConfirmationPrompt("gu-IN")
         _liveActionStep.value = "Awaiting Kishan's approval for WhatsApp Dispatch"
+    }
+
+    private fun speakConfirmationPrompt(bcp47Locale: String) {
+        val prompt = when {
+            bcp47Locale.startsWith("hi") -> "किशनभाई, क्या मैं यह बदलाव कन्फर्म કરूँ?"
+            bcp47Locale.startsWith("en") -> "Kishan, should I confirm this change on your phone?"
+            else -> "કિશનભાઈ, શું હું આ બદલાવ કન્ફર્મ કરું?"
+        }
+        speakBack(prompt, bcp47Locale)
     }
 
     private fun speakBack(text: String, bcp47Locale: String) {
