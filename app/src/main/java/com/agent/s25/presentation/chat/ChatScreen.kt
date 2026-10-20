@@ -694,6 +694,21 @@ private fun IndicQuickSuggestionsBar(
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         SuggestionPill(
+            label = "🖥️ સ્ક્રીન વાંચો",
+            accent = SoftCyan,
+            onClick = { onSelectPrompt("મારી સ્ક્રીન પર શું દેખાય છે?") }
+        )
+        SuggestionPill(
+            label = "☀️ મોર્નિંગ બ્રીફિંગ",
+            accent = AmberIndicGold,
+            onClick = { onSelectPrompt("સુપ્રભાત Jerry, આજનું બ્રીફિંગ આપો.") }
+        )
+        SuggestionPill(
+            label = "⚡ કમ્પાઉન્ડ વર્કફ્લો",
+            accent = ElectricIndigo,
+            onClick = { onSelectPrompt("કાનાભાઈને વોટ્સએપ મોકલો અને કાલનું રીમાઇન્ડર સેટ કર.") }
+        )
+        SuggestionPill(
             label = "🔑 છેલ્લો OTP?",
             accent = AmberIndicGold,
             onClick = { onSelectPrompt("છેલ્લો OTP શું આવ્યો છે?") }

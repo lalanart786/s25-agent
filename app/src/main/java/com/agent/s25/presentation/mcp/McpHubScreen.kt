@@ -442,6 +442,63 @@ fun McpHubScreen(mcpClient: McpClient) {
                 )
             }
 
+            // Section 5: Screen Vision & Executive Proactive Suite
+            item {
+                Spacer(modifier = Modifier.height(6.dp))
+                SectionHeader(
+                    title = "SCREEN VISION & PROACTIVE SUITE",
+                    subtitle = "Ambient screen awareness, morning briefings & compound workflows"
+                )
+            }
+
+            item {
+                SystemHardwareCard(
+                    title = "Live Screen Awareness & OCR",
+                    description = "Jerry inspects the active screen window to read and understand documents or chats",
+                    icon = Icons.Default.Visibility,
+                    accent = SoftCyan,
+                    actionButtonText = "Read Screen",
+                    onAction = {
+                        coroutineScope.launch {
+                            val result = mcpClient.executeTool("read_current_screen", "{}")
+                            activeResultDialog = Pair("Active Screen Content", result)
+                        }
+                    }
+                )
+            }
+
+            item {
+                SystemHardwareCard(
+                    title = "Morning Executive Briefing",
+                    description = "Synthesizes today's meetings, weather, battery, and Knox reminders",
+                    icon = Icons.Default.WbSunny,
+                    accent = AmberIndicGold,
+                    actionButtonText = "Run Briefing",
+                    onAction = {
+                        coroutineScope.launch {
+                            val result = mcpClient.executeTool("get_morning_briefing", "{}")
+                            activeResultDialog = Pair("Morning Briefing", result)
+                        }
+                    }
+                )
+            }
+
+            item {
+                SystemHardwareCard(
+                    title = "Multi-Step Compound Workflow",
+                    description = "Chains actions across multiple apps with a single final approval card",
+                    icon = Icons.Default.AltRoute,
+                    accent = ElectricIndigo,
+                    actionButtonText = "Test Workflow",
+                    onAction = {
+                        coroutineScope.launch {
+                            val result = mcpClient.executeTool("execute_compound_workflow", "{\"workflowName\": \"WhatsApp Dispatch + Calendar Followup\"}")
+                            activeResultDialog = Pair("Compound Workflow", result)
+                        }
+                    }
+                )
+            }
+
             // Registered MCP Tools Section
             if (availableTools.isNotEmpty()) {
                 item {

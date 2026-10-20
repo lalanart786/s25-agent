@@ -132,6 +132,22 @@ class ToolRegistry(
                 lowerPrompt.contains("telegram") || lowerPrompt.contains("ટેલિગ્રામ") || lowerPrompt.contains("टेलीग्राम")
             )) score += 20
 
+            if (toolName.contains("screen") && (
+                lowerPrompt.contains("screen") || lowerPrompt.contains("સ્ક્રીન") || lowerPrompt.contains("વાંચ") ||
+                lowerPrompt.contains("દેખાય") || lowerPrompt.contains("આ શું છે") || lowerPrompt.contains("સ્ક્રીન પર")
+            )) score += 30
+
+            if (toolName.contains("briefing") && (
+                lowerPrompt.contains("morning") || lowerPrompt.contains("સુપ્રભાત") || lowerPrompt.contains("બ્રીફિંગ") ||
+                lowerPrompt.contains("આજનો દિવસ") || lowerPrompt.contains("આજનું પ્લાનિંગ") || lowerPrompt.contains("ગુડ મોર્નિંગ")
+            )) score += 30
+
+            if (toolName.contains("compound") || toolName.contains("workflow")) {
+                if (lowerPrompt.contains("અને") || lowerPrompt.contains("પછી") || lowerPrompt.contains("ત્યારબાદ") || lowerPrompt.contains("workflow")) {
+                    score += 25
+                }
+            }
+
             score
         }.take(maxTools)
     }

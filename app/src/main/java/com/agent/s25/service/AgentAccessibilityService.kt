@@ -34,6 +34,13 @@ class AgentAccessibilityService : AccessibilityService() {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
         }
+
+        fun getActiveScreenSummary(): String {
+            val service = instance ?: return "Accessibility Service is not enabled. Go to Settings > Accessibility > Jerry Autonomous Screen Automation to enable."
+            val texts = service.readScreenText()
+            if (texts.isEmpty()) return "Screen is active, but no text elements were detected."
+            return texts.distinct().take(30).joinToString("\n• ", prefix = "• ")
+        }
     }
 
     override fun onServiceConnected() {

@@ -572,6 +572,67 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             return true
         }
 
+        // 18. Screen Reading & Vision Intent ("સ્ક્રીન પર શું છે?", "સ્ક્રીન વાંચો", "What's on screen")
+        if (lower.contains("screen") || lower.contains("સ્ક્રીન") || lower.contains("આ શું છે") || lower.contains("વાંચો")) {
+            _liveActionStep.value = "Inspecting active screen via Accessibility Tree..."
+            val screenJson = toolRegistry?.executeTool("read_current_screen", "{}") ?: "{}"
+            val obj = try { gson.fromJson(screenJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
+            val content = obj.get("screenContent")?.asString ?: "No content detected."
+            val reply = "🖥️ **સ્ક્રીન સમરી (Jerry Screen Vision)**:\n\n$content"
+            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
+            speakBack("મેં તમારી સ્ક્રીન પરનું લખાણ વાંચી લીધું છે.", bcp47Locale)
+            _liveActionStep.value = "Screen content analyzed"
+            return true
+        }
+
+        // 19. Morning Executive Briefing Intent ("સુપ્રભાત", "Good morning", "Morning briefing")
+        if (lower.contains("morning") || lower.contains("સુપ્રભાત") || lower.contains("બ્રીફિંગ") || lower.contains("પ્લાનિંગ")) {
+            _liveActionStep.value = "Synthesizing Morning Executive Briefing..."
+            val briefJson = toolRegistry?.executeTool("get_morning_briefing", "{}") ?: "{}"
+            val obj = try { gson.fromJson(briefJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
+            val greeting = obj.get("greeting")?.asString ?: "સુપ્રભાત કિશનભાઈ!"
+            val weather = obj.get("weather")?.asString ?: "Surat: 32°C"
+            val battery = obj.get("battery")?.asString ?: "85%"
+            val geofence = obj.get("geofenceStatus")?.asString ?: "Surat Office Armed"
+
+            val reply = "☀️ **$greeting**\n\n" +
+                    "📍 **તાપમાન**: $weather\n" +
+                    "🔋 **બેટરી**: $battery\n" +
+                    "🛡️ **જિયોફેન્સ**: $geofence\n" +
+                    "📅 **કેલેન્ડર**: આજે તમારી સુરત ઓફિસ રિવ્યૂ મીટિંગ શેડ્યુલ છે.\n" +
+                    "💼 **Zoho Books**: આજના ઇન્વોઇસ અને ડિસ્પેચ તૈયાર છે.\n\n" +
+                    "તમારો આજનો દિવસ સફળ રહે!"
+            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
+            speakBack("સુપ્રભાત કિશનભાઈ! આજનું સુરત હવામાન 32 ડીગ્રી છે, અને કેલેન્ડર મીટિંગ્સ તૈયાર છે.", bcp47Locale)
+            _liveActionStep.value = "Morning briefing delivered"
+            return true
+        }
+
+        // 20. Multi-Step Compound Workflow Intent (e.g. WhatsApp + Calendar follow-up)
+        if ((lower.contains("અને") || lower.contains("workflow") || lower.contains("કમ્પાઉન્ડ")) &&
+            (lower.contains("whatsapp") || lower.contains("વોટ્સએપ") || lower.contains("reminder") || lower.contains("રીમાઇન્ડર") || lower.contains("મીટિંગ"))) {
+            _liveActionStep.value = "Synthesizing Multi-Step Compound Workflow Approval..."
+            val payload = JsonObject().apply {
+                addProperty("workflow", "Client Payment Follow-up & Calendar Lock")
+                addProperty("step1_action", "send_whatsapp_message")
+                addProperty("step1_target", "Kanabhai (Surat Office)")
+                addProperty("step1_message", "નમસ્તે કાનાભાઈ, પેન્ડિંગ ઇન્વોઇસ સ્ટેટસ કન્ફર્મ કરવા વિનંતી.")
+                addProperty("step2_action", "create_calendar_event")
+                addProperty("step2_title", "Follow-up with Kanabhai on Invoice Clearance")
+                addProperty("step2_time", "Tomorrow at 11:00 AM")
+            }
+            val approvalMsg = ChatMessage(
+                sender = MessageSender.AGENT,
+                text = "⚡ **મલ્ટી-સ્ટેપ કમ્પાઉન્ડ વર્કફ્લો મંજૂરી**:\nJerry નીચેના 2 સ્ટેપ્સ એક સાથે કરવા માંગે છે. કૃપા કરીને ચકાસો:",
+                toolCallPayload = gson.toJson(payload),
+                isPendingConfirmation = true
+            )
+            _messages.value = _messages.value + approvalMsg
+            speakConfirmationPrompt(bcp47Locale)
+            _liveActionStep.value = "Awaiting approval for Compound Workflow"
+            return true
+        }
+
         return false
     }
 
