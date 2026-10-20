@@ -38,7 +38,7 @@ abstract class MemoryDao {
     protected abstract fun getMemoriesByCategoryRaw(category: String): Flow<List<MemoryEntity>>
 
     open fun getMemoriesByCategory(category: String): Flow<List<MemoryEntity>> {
-        return getMemoriesByCategoryRaw().map { list ->
+        return getMemoriesByCategoryRaw(category).map { list ->
             list.map { it.toDecrypted() }
         }
     }
