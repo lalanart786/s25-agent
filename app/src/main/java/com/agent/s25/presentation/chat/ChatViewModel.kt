@@ -131,7 +131,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
         }
     }
 
-    fun sendMessage(userText: String) {
+    fun sendMessage(userText: String, isVoiceInput: Boolean = false) {
         if (userText.isBlank()) return
 
         val userMsg = ChatMessage(sender = MessageSender.USER, text = userText)
@@ -144,7 +144,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             _liveActionStep.value = "Analyzing user intent in ${detectedLang.name} & consulting Knox Memory..."
 
             // 1. Check for Fast-Path On-Device Agent Intents (Zero-Latency Local Dispatch)
-            val fastPathHandled = handleFastPathAgentIntent(userText, detectedLang.bcp47)
+            val fastPathHandled = handleFastPathAgentIntent(userText, detectedLang.bcp47, isVoiceInput)
             if (fastPathHandled) {
                 _isGenerating.value = false
                 return@launch
@@ -169,7 +169,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             // Check if OpenRouter cloud fallback is configured
             if (openRouterClient.hasApiKey()) {
                 _liveActionStep.value = "OpenRouter AI (${openRouterClient.selectedModel}) • Generating..."
-                val sysPrompt = "You are Jerry, an elite, highly intelligent personal AI agent for Kishan (Founder of Lalan Art, Surat). Fluent in Gujarati, Hindi, and English. Keep responses direct, helpful, and concise.\n$profileHeader"
+                val sysPrompt = "You are Jerry, an elite, highly intelligent personal AI agent for Kishan (Founder of Lalan Art, Surat). Default to English as main language, but respond fluently in Gujarati or Hindi if user asks in those languages. Keep responses direct, helpful, and concise.\n$profileHeader"
                 openRouterClient.streamChatCompletion(userText, sysPrompt).collect { token ->
                     accumulatedText.append(token)
                     _messages.value = _messages.value.dropLast(1) + agentMsg.copy(text = accumulatedText.toString())
@@ -188,8 +188,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             // 3. Post-process response to see if model generated a JSON tool call
             checkAndHandleModelToolCall(accumulatedText.toString())
 
-            // Speak back in native tongue
-            speakBack(accumulatedText.toString(), detectedLang.bcp47)
+            // ONLY speak aloud if the user asked verbally / via microphone
+            if (isVoiceInput) {
+                speakBack(accumulatedText.toString(), detectedLang.bcp47)
+            }
         }
     }
 
@@ -198,7 +200,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
      * Immediately routes common commands in Gujarati, Hindi, and English with zero latency,
      * triggering Meta Muse Action Approval Cards for state-changing operations.
      */
-    private suspend fun handleFastPathAgentIntent(userText: String, bcp47Locale: String): Boolean {
+    private suspend fun handleFastPathAgentIntent(userText: String, bcp47Locale: String, isVoiceInput: Boolean = false): Boolean {
         val lower = userText.lowercase()
 
         // 1. Battery Query Intent
@@ -208,9 +210,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             val batteryJson = toolRegistry?.executeTool("get_device_battery", "{}") ?: "{}"
             val obj = try { gson.fromJson(batteryJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
             val pct = obj.get("battery_percentage")?.asInt ?: 85
-            val reply = "🔋 તમારા Samsung Galaxy S25 Ultra ની બેટરી $pct% છે. ફોન નોર્મલ ટેમ્પરેચર પર ખૂબ સરસ ચાલી રહ્યો છે."
+            val reply = "🔋 Your Samsung Galaxy S25 Ultra battery is at $pct%."
             _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            speakBack(reply, bcp47Locale)
+            if (isVoiceInput) speakBack(reply, bcp47Locale)
             _liveActionStep.value = "Battery queried: $pct%"
             return true
         }
@@ -318,9 +320,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             _liveActionStep.value = "Toggling Flashlight via Camera2 API..."
             toolRegistry?.executeTool("toggle_flashlight", "{\"enabled\": $turnOn}")
             val stateText = if (turnOn) "ચાલુ (ON)" else "બંધ (OFF)"
-            val reply = "🔦 ફોનની ફ્લેશલાઇટ $stateText કરી દેવામાં આવી છે."
+            val reply = "🔦 The phone flashlight has been turned $stateText."
             _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            speakBack(reply, bcp47Locale)
+            if (isVoiceInput) speakBack(reply, bcp47Locale)
             _liveActionStep.value = "Flashlight $stateText"
             return true
         }
@@ -335,9 +337,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 .trim()
 
             val savedId = memoryManager?.rememberFact("PERSONAL", "User Note", cleanFact, "gu") ?: 1L
-            val reply = "🔒 મેં તમારા Knox Memory Vault માં આ માહિતી AES-256 સાથે સેવ કરી લીધી છે:\n\"$cleanFact\""
+            val reply = "🔒 Saved to your Knox Memory Vault:\n\"$cleanFact\""
             _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            speakBack(reply, bcp47Locale)
+            if (isVoiceInput) speakBack(reply, bcp47Locale)
             _liveActionStep.value = "Fact saved in Knox Vault (ID: $savedId)"
             return true
         }
@@ -381,7 +383,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                     "📅 આગામી 2 દિવસમાં કોઈ નવી મીટિંગ શેડ્યુલ નથી. તમારો દિવસ ફ્રી છે!"
                 }
                 _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-                speakBack(reply, bcp47Locale)
+                if (isVoiceInput) speakBack(reply, bcp47Locale)
                 _liveActionStep.value = "Calendar events retrieved"
                 return true
             }
@@ -407,7 +409,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 }
             }
 
-            val actionPrompt = if (isTimer) "⏱️ 5 મિનિટનું ટાઈમર સેટ કરવા માટે મંજૂરી આપો:" else "⏰ સવારે 7:00 વાગ્યાનું એલાર્મ સેટ કરવા માટે મંજૂરી આપો:"
+            val actionPrompt = if (isTimer) "⏱️ Please authorize setting a 5-minute timer:" else "⏰ Please authorize setting a 7:00 AM alarm:"
             val approvalMsg = ChatMessage(
                 sender = MessageSender.AGENT,
                 text = actionPrompt,
@@ -427,12 +429,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             val obj = try { gson.fromJson(clipJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
             val clipText = obj.get("clipboardText")?.asString ?: ""
             val reply = if (clipText.isNotBlank()) {
-                "📋 તમારા ફોન ક્લિપબોર્ડ માં હાલમાં કોપી થયેલું ટેક્સ્ટ:\n\n\"$clipText\""
+                "📋 Current clipboard content:\n\n\"$clipText\""
             } else {
-                "📋 ક્લિપબોર્ડ હાલમાં ખાલી છે (No text in clipboard)."
+                "📋 Clipboard is currently empty."
             }
             _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            speakBack(reply, bcp47Locale)
+            if (isVoiceInput) speakBack(reply, bcp47Locale)
             _liveActionStep.value = "Clipboard retrieved"
             return true
         }
@@ -450,17 +452,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             val obj = try { gson.fromJson(contactsJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
             val contacts = obj.getAsJsonArray("contacts")
             val reply = if (contacts != null && contacts.size() > 0) {
-                val sb = StringBuilder("📇 સંપર્કો (Contacts Search for '$query'):\n")
+                val sb = StringBuilder("📇 Contacts found for '$query':\n")
                 contacts.forEach { c ->
                     val item = c.asJsonObject
                     sb.append("• ${item.get("name")?.asString}: ${item.get("phoneNumber")?.asString}\n")
                 }
                 sb.toString().trim()
             } else {
-                "📇 '$query' માટે કોઈ સંપર્ક મળ્યો નથી."
+                "📇 No contacts found matching '$query'."
             }
             _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            speakBack(reply, bcp47Locale)
+            if (isVoiceInput) speakBack(reply, bcp47Locale)
             _liveActionStep.value = "Contacts search complete"
             return true
         }
@@ -471,9 +473,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             val memories = memoryManager?.searchPastMemory(userText, 2) ?: emptyList()
             if (memories.isNotEmpty()) {
                 val facts = memories.joinToString("\n") { "• ${it.key}: ${it.value}" }
-                val reply = "📋 તમારા Knox Memory Vault માંથી મળેલી વિગતો:\n$facts"
+                val reply = "📋 Stored in your Knox Memory Vault:\n$facts"
                 _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-                speakBack(reply, bcp47Locale)
+                if (isVoiceInput) speakBack(reply, bcp47Locale)
                 _liveActionStep.value = "Knox Memory retrieved"
                 return true
             }
@@ -488,12 +490,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                 val otpCode = obj.get("otp")?.asString ?: ""
                 val sender = obj.get("sender")?.asString ?: "Unknown"
                 val time = obj.get("time")?.asString ?: "Recent"
-                "🔑 તમારો છેલ્લો OTP કોડ **$otpCode** છે.\n(મોકલનાર: $sender • સમય: $time)"
+                "🔑 Latest OTP code is **$otpCode**.\n(Sender: $sender • Time: $time)"
             } else {
-                "🔑 ઇનબોક્સમાં કોઈ નવો OTP અથવા વેરિફિકેશન કોડ મળ્યો નથી."
+                "🔑 No active OTP or 2FA code found in messages."
             }
             _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            speakBack(reply, bcp47Locale)
+            if (isVoiceInput) speakBack(reply, bcp47Locale)
             _liveActionStep.value = "OTP detected: ${obj.get("otp")?.asString ?: "None"}"
             return true
         }
@@ -590,9 +592,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             val screenJson = toolRegistry?.executeTool("read_current_screen", "{}") ?: "{}"
             val obj = try { gson.fromJson(screenJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
             val content = obj.get("screenContent")?.asString ?: "No content detected."
-            val reply = "🖥️ **સ્ક્રીન સમરી (Jerry Screen Vision)**:\n\n$content"
+            val reply = "🖥️ **Screen Summary (Jerry Screen Vision)**:\n\n$content"
             _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            speakBack("મેં તમારી સ્ક્રીન પરનું લખાણ વાંચી લીધું છે.", bcp47Locale)
+            if (isVoiceInput) speakBack("Screen reading complete.", bcp47Locale)
             _liveActionStep.value = "Screen content analyzed"
             return true
         }
@@ -602,20 +604,20 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             _liveActionStep.value = "Synthesizing Morning Executive Briefing..."
             val briefJson = toolRegistry?.executeTool("get_morning_briefing", "{}") ?: "{}"
             val obj = try { gson.fromJson(briefJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
-            val greeting = obj.get("greeting")?.asString ?: "સુપ્રભાત કિશનભાઈ!"
+            val greeting = obj.get("greeting")?.asString ?: "Good Morning Kishan!"
             val weather = obj.get("weather")?.asString ?: "Surat: 32°C"
             val battery = obj.get("battery")?.asString ?: "85%"
             val geofence = obj.get("geofenceStatus")?.asString ?: "Surat Office Armed"
 
             val reply = "☀️ **$greeting**\n\n" +
-                    "📍 **તાપમાન**: $weather\n" +
-                    "🔋 **બેટરી**: $battery\n" +
-                    "🛡️ **જિયોફેન્સ**: $geofence\n" +
-                    "📅 **કેલેન્ડર**: આજે તમારી સુરત ઓફિસ રિવ્યૂ મીટિંગ શેડ્યુલ છે.\n" +
-                    "💼 **Zoho Books**: આજના ઇન્વોઇસ અને ડિસ્પેચ તૈયાર છે.\n\n" +
-                    "તમારો આજનો દિવસ સફળ રહે!"
+                    "📍 **Weather**: $weather\n" +
+                    "🔋 **Battery**: $battery\n" +
+                    "🛡️ **Geofence**: $geofence\n" +
+                    "📅 **Schedule**: Surat Office Review Meeting\n" +
+                    "💼 **Zoho Books**: Pending invoices and dispatches are queued up.\n\n" +
+                    "Have a productive day ahead!"
             _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            speakBack("સુપ્રભાત કિશનભાઈ! આજનું સુરત હવામાન 32 ડીગ્રી છે, અને કેલેન્ડર મીટિંગ્સ તૈયાર છે.", bcp47Locale)
+            if (isVoiceInput) speakBack("Good Morning Kishan! Surat temperature is 32 degrees, battery is at $battery, and meetings are lined up.", bcp47Locale)
             _liveActionStep.value = "Morning briefing delivered"
             return true
         }
@@ -721,7 +723,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
         }
 
         _liveActionStep.value = "Voice verified • Calibrated: ${adaptation.trainingProgress}"
-        sendMessage("સુરત ઓફિસે જઈને મને પેન્ડિંગ ઇન્વોઇસ યાદ કરાવજે.")
+        sendMessage("Remind me of pending invoices when I reach Surat office.", isVoiceInput = true)
     }
 
     fun confirmToolExecution(msgId: String, toolName: String, argsJson: String) {
