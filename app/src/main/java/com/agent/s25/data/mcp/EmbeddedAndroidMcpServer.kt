@@ -13,6 +13,7 @@ class EmbeddedAndroidMcpServer(private val context: Context) {
     private val locationProvider = LocationProvider(context)
     val appBridge = InstalledAppMcpBridge(context)
     val executiveBridge = ExecutiveToolsMcpBridge(context)
+    val messagingBridge = MessagingToolsMcpBridge(context)
 
     fun listEmbeddedTools(): List<McpToolDefinition> {
         val hardwareTools = listOf(
@@ -39,7 +40,7 @@ class EmbeddedAndroidMcpServer(private val context: Context) {
             )
         )
 
-        return hardwareTools + appBridge.getToolDefinitions() + executiveBridge.getToolDefinitions()
+        return hardwareTools + appBridge.getToolDefinitions() + executiveBridge.getToolDefinitions() + messagingBridge.getToolDefinitions()
     }
 
     suspend fun executeTool(name: String, arguments: JsonObject): String {
@@ -54,6 +55,14 @@ class EmbeddedAndroidMcpServer(private val context: Context) {
         )
         if (executiveToolNames.contains(name)) {
             return executiveBridge.executeTool(name, arguments)
+        }
+
+        val messagingToolNames = setOf(
+            "read_latest_sms", "get_latest_otp", "send_sms",
+            "send_whatsapp_message", "send_email_draft", "send_telegram_message"
+        )
+        if (messagingToolNames.contains(name)) {
+            return messagingBridge.executeTool(name, arguments)
         }
 
         return when (name) {

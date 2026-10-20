@@ -369,6 +369,79 @@ fun McpHubScreen(mcpClient: McpClient) {
                 )
             }
 
+            // Section 4: Communication & Messaging Suite
+            item {
+                Spacer(modifier = Modifier.height(6.dp))
+                SectionHeader(
+                    title = "COMMUNICATION & MESSAGING SUITE",
+                    subtitle = "SMS OTP detection, direct WhatsApp, Gmail & Telegram"
+                )
+            }
+
+            item {
+                SystemHardwareCard(
+                    title = "SMS Inbox & OTP Intelligence",
+                    description = "Automatically parse latest incoming SMS messages and extract 2FA / OTP codes",
+                    icon = Icons.Default.Sms,
+                    accent = AmberIndicGold,
+                    actionButtonText = "Scan OTP",
+                    onAction = {
+                        coroutineScope.launch {
+                            val result = mcpClient.executeTool("get_latest_otp", "{}")
+                            activeResultDialog = Pair("Latest OTP Code", result)
+                        }
+                    }
+                )
+            }
+
+            item {
+                SystemHardwareCard(
+                    title = "WhatsApp Direct Message",
+                    description = "Draft and trigger pre-formatted WhatsApp chat to client or office",
+                    icon = Icons.Default.Chat,
+                    accent = EmeraldSafeGreen,
+                    actionButtonText = "Test WhatsApp",
+                    onAction = {
+                        coroutineScope.launch {
+                            val result = mcpClient.executeTool("send_whatsapp_message", "{\"phone_number\": \"\", \"message\": \"નમસ્તે Lalan Art, આજનું ઓર્ડર સ્ટેટસ શું છે?\"}")
+                            activeResultDialog = Pair("WhatsApp Action", result)
+                        }
+                    }
+                )
+            }
+
+            item {
+                SystemHardwareCard(
+                    title = "Gmail / Email Composer",
+                    description = "Compose structured client emails with prefilled subject and body",
+                    icon = Icons.Default.Email,
+                    accent = ElectricIndigo,
+                    actionButtonText = "Draft Email",
+                    onAction = {
+                        coroutineScope.launch {
+                            val result = mcpClient.executeTool("send_email_draft", "{\"to\": \"kishan@lalanart.com\", \"subject\": \"Lalan Art Daily Update\", \"body\": \"નમસ્તે કિશનભાઈ, આજનું ઓર્ડર પ્રોડક્શન રીપોર્ટ તૈયાર છે.\"}")
+                            activeResultDialog = Pair("Email Action", result)
+                        }
+                    }
+                )
+            }
+
+            item {
+                SystemHardwareCard(
+                    title = "Telegram Messenger Dispatch",
+                    description = "Dispatch urgent telegram updates to team members or channels",
+                    icon = Icons.Default.Send,
+                    accent = SoftCyan,
+                    actionButtonText = "Send Telegram",
+                    onAction = {
+                        coroutineScope.launch {
+                            val result = mcpClient.executeTool("send_telegram_message", "{\"username\": \"Kmiyani\", \"message\": \"S25 Agent Live Test from Surat Office.\"}")
+                            activeResultDialog = Pair("Telegram Action", result)
+                        }
+                    }
+                )
+            }
+
             // Registered MCP Tools Section
             if (availableTools.isNotEmpty()) {
                 item {

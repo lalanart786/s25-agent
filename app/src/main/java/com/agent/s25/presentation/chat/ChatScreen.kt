@@ -687,6 +687,26 @@ private fun IndicQuickSuggestionsBar(
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         SuggestionPill(
+            label = "🔑 છેલ્લો OTP?",
+            accent = AmberIndicGold,
+            onClick = { onSelectPrompt("છેલ્લો OTP શું આવ્યો છે?") }
+        )
+        SuggestionPill(
+            label = "📩 SMS વાંચો",
+            accent = SoftCyan,
+            onClick = { onSelectPrompt("મારા છેલ્લા SMS વાંચીને બતાવ.") }
+        )
+        SuggestionPill(
+            label = "📧 Gmail ડ્રાફ્ટ",
+            accent = ElectricIndigo,
+            onClick = { onSelectPrompt("કિશનભાઈને ઈમેલ મોકલો.") }
+        )
+        SuggestionPill(
+            label = "✈️ Telegram",
+            accent = SoftCyan,
+            onClick = { onSelectPrompt("ટેલિગ્રામ પર અપડેટ મોકલો.") }
+        )
+        SuggestionPill(
             label = "📍 સુરત ઓફિસ?",
             accent = SoftCyan,
             onClick = { onSelectPrompt("મારી સુરત ઓફિસ નો રસ્તો બતાવ.") }

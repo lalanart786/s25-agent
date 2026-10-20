@@ -116,6 +116,22 @@ class ToolRegistry(
                 lowerPrompt.contains("क्लिपबोर्ड")
             )) score += 20
 
+            if ((toolName.contains("sms") || toolName.contains("otp")) && (
+                lowerPrompt.contains("sms") || lowerPrompt.contains("otp") || lowerPrompt.contains("message") ||
+                lowerPrompt.contains("એસએમએસ") || lowerPrompt.contains("ઓટીપી") || lowerPrompt.contains("કોડ") ||
+                lowerPrompt.contains("ઓટીપી") || lowerPrompt.contains("ओटीपी") || lowerPrompt.contains("एसएमएस")
+            )) score += 25
+
+            if ((toolName.contains("email") || toolName.contains("mail")) && (
+                lowerPrompt.contains("email") || lowerPrompt.contains("mail") || lowerPrompt.contains("gmail") ||
+                lowerPrompt.contains("ઈમેલ") || lowerPrompt.contains("મેઇલ") || lowerPrompt.contains("જીમેલ") ||
+                lowerPrompt.contains("ईमेल") || lowerPrompt.contains("मेल")
+            )) score += 20
+
+            if (toolName.contains("telegram") && (
+                lowerPrompt.contains("telegram") || lowerPrompt.contains("ટેલિગ્રામ") || lowerPrompt.contains("टेलीग्राम")
+            )) score += 20
+
             score
         }.take(maxTools)
     }

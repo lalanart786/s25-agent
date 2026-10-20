@@ -456,6 +456,108 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             }
         }
 
+        // 13. OTP & SMS Reader Intent ("છેલ્લો OTP શું છે?", "Read my SMS")
+        if (lower.contains("otp") || lower.contains("ઓટીપી") || lower.contains("પાસકોડ") || lower.contains("code")) {
+            _liveActionStep.value = "Scanning SMS inbox for latest OTP..."
+            val otpJson = toolRegistry?.executeTool("get_latest_otp", "{}") ?: "{}"
+            val obj = try { gson.fromJson(otpJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
+            val reply = if (obj.get("status")?.asString == "success") {
+                val otpCode = obj.get("otp")?.asString ?: ""
+                val sender = obj.get("sender")?.asString ?: "Unknown"
+                val time = obj.get("time")?.asString ?: "Recent"
+                "🔑 તમારો છેલ્લો OTP કોડ **$otpCode** છે.\n(મોકલનાર: $sender • સમય: $time)"
+            } else {
+                "🔑 ઇનબોક્સમાં કોઈ નવો OTP અથવા વેરિફિકેશન કોડ મળ્યો નથી."
+            }
+            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
+            speakBack(reply, bcp47Locale)
+            _liveActionStep.value = "OTP detected: ${obj.get("otp")?.asString ?: "None"}"
+            return true
+        }
+
+        // 14. SMS Reading Intent ("SMS વાંચ", "read sms")
+        if ((lower.contains("sms") || lower.contains("એસએમએસ")) && (lower.contains("read") || lower.contains("વાંચ") || lower.contains("ચેક") || lower.contains("દેખાડ"))) {
+            _liveActionStep.value = "Reading recent SMS inbox..."
+            val smsJson = toolRegistry?.executeTool("read_latest_sms", "{\"limit\": 3}") ?: "{}"
+            val obj = try { gson.fromJson(smsJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
+            val msgArray = obj.getAsJsonArray("messages")
+            val reply = if (msgArray != null && msgArray.size() > 0) {
+                val sb = StringBuilder("📩 છેલ્લા SMS મેસેજ:\n")
+                msgArray.forEach { m ->
+                    val item = m.asJsonObject
+                    sb.append("• **${item.get("sender")?.asString}** (${item.get("time")?.asString}):\n  ${item.get("body")?.asString}\n\n")
+                }
+                sb.toString().trim()
+            } else {
+                "📩 તમારા SMS ઇનબોક્સમાં કોઈ નવા મેસેજ મળ્યા નથી અથવા પરમિશન જરૂરી છે."
+            }
+            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
+            speakBack(reply, bcp47Locale)
+            _liveActionStep.value = "SMS inbox processed"
+            return true
+        }
+
+        // 15. SMS Send Intent ("SMS મોકલ", "Send SMS")
+        if (lower.contains("send sms") || lower.contains("sms મોકલ") || lower.contains("એસએમએસ મોકલ") || lower.contains("મેસેજ કર")) {
+            _liveActionStep.value = "Preparing SMS Action Approval Card..."
+            val payload = JsonObject().apply {
+                addProperty("tool", "send_sms")
+                addProperty("appName", "SMS Messages")
+                addProperty("recipient", "+91 98250 88990")
+                addProperty("message", "નમસ્તે, Lalan Art તરફથી ડિસ્પેચ કન્ફર્મેશન.")
+            }
+            val approvalMsg = ChatMessage(
+                sender = MessageSender.AGENT,
+                text = "💬 નવો SMS મોકલવા માટે કૃપા કરીને આ એક્શન ચકાસો અને કન્ફર્મ કરો:",
+                toolCallPayload = gson.toJson(payload),
+                isPendingConfirmation = true
+            )
+            _messages.value = _messages.value + approvalMsg
+            _liveActionStep.value = "Awaiting approval for SMS dispatch"
+            return true
+        }
+
+        // 16. Email / Gmail Intent ("ઈમેલ મોકલ", "Send Email")
+        if (lower.contains("email") || lower.contains("mail") || lower.contains("ઈમેલ") || lower.contains("મેઇલ") || lower.contains("જીમેલ")) {
+            _liveActionStep.value = "Preparing Email Action Approval Card..."
+            val payload = JsonObject().apply {
+                addProperty("tool", "send_email_draft")
+                addProperty("appName", "Gmail")
+                addProperty("to", "kishan@lalanart.com")
+                addProperty("subject", "Lalan Art Daily Operations Digest")
+                addProperty("body", "નમસ્તે કિશનભાઈ,\n\nઆજનું ઓપરેશનલ સમરી સફળતાપૂર્વક તૈયાર છે.\n- S25 Ultra Agent")
+            }
+            val approvalMsg = ChatMessage(
+                sender = MessageSender.AGENT,
+                text = "📧 નવો ઈમેલ ડ્રાફ્ટ ખોલવા અને મોકલવા માટે મંજૂરી આપો:",
+                toolCallPayload = gson.toJson(payload),
+                isPendingConfirmation = true
+            )
+            _messages.value = _messages.value + approvalMsg
+            _liveActionStep.value = "Awaiting approval for Email draft"
+            return true
+        }
+
+        // 17. Telegram Intent ("Telegram મોકલ", "Send Telegram")
+        if (lower.contains("telegram") || lower.contains("ટેલિગ્રામ")) {
+            _liveActionStep.value = "Preparing Telegram Action Approval Card..."
+            val payload = JsonObject().apply {
+                addProperty("tool", "send_telegram_message")
+                addProperty("appName", "Telegram")
+                addProperty("username", "@Kmiyani")
+                addProperty("message", "નમસ્તે કિશનભાઈ, S25 Muse Agent તરફથી ઓર્ડર અપડેટ.")
+            }
+            val approvalMsg = ChatMessage(
+                sender = MessageSender.AGENT,
+                text = "✈️ Telegram પર મેસેજ મોકલવા માટે પુષ્ટિ કરો:",
+                toolCallPayload = gson.toJson(payload),
+                isPendingConfirmation = true
+            )
+            _messages.value = _messages.value + approvalMsg
+            _liveActionStep.value = "Awaiting approval for Telegram message"
+            return true
+        }
+
         return false
     }
 

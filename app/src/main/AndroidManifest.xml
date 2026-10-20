@@ -37,16 +37,20 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
 
-    <!-- Executive Suite: Calendar, Contacts, Alarms -->
+    <!-- Executive Suite: Calendar, Contacts, Alarms, SMS -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
 
     <!-- Query Declarations for Target Apps -->
     <queries>
         <package android:name="com.whatsapp" />
         <package android:name="com.whatsapp.w4b" />
+        <package android:name="org.telegram.messenger" />
         <package android:name="com.google.android.apps.maps" />
         <package android:name="com.google.android.youtube" />
         <package android:name="com.zoho.books" />
