@@ -19,12 +19,17 @@ class S25AgentApplication : Application() {
 
         init {
             try {
+                System.loadLibrary("c++_shared")
+            } catch (t: Throwable) {
+                Log.w(TAG, "c++_shared load: ${t.message}")
+            }
+            try {
                 System.loadLibrary("s25_agent_native")
                 isNativeLoaded = true
                 Log.i(TAG, "Native library 's25_agent_native' loaded successfully.")
-            } catch (e: UnsatisfiedLinkError) {
+            } catch (t: Throwable) {
                 isNativeLoaded = false
-                Log.w(TAG, "Native library not available (running in UI-only mode): ${e.message}")
+                Log.w(TAG, "Native library not available: ${t.message}")
             }
         }
     }

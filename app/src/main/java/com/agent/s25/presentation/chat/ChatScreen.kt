@@ -1,5 +1,7 @@
 package com.agent.s25.presentation.chat
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,8 +9,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,13 +31,85 @@ fun ChatScreen(viewModel: ChatViewModel) {
     val messages by viewModel.messages.collectAsState()
     val isGenerating by viewModel.isGenerating.collectAsState()
     val isListening by viewModel.isListening.collectAsState()
+    val loadedModelName by viewModel.loadedModelName.collectAsState()
     var inputText by remember { mutableStateOf("") }
+
+    // Direct File Picker for .gguf model files
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.selectModelUri(it) }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(AmoledBackground)
     ) {
+        // Model Status & Selector Top Banner
+        Surface(
+            color = AmoledSurface,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(if (loadedModelName != null) SafeGreen else WarningRed)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = if (loadedModelName != null) loadedModelName!! else "No Model Active",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = if (loadedModelName != null) "Snapdragon 8 Elite • Ready" else "Tap Select to choose .gguf",
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilledTonalButton(
+                        onClick = { filePickerLauncher.launch(arrayOf("*/*")) },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = AmoledSurfaceVariant,
+                            contentColor = IndicGold
+                        )
+                    ) {
+                        Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(if (loadedModelName == null) "Select Model" else "Switch", fontSize = 11.sp)
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.refreshScan() },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Rescan", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+        }
+
+        Divider(color = AmoledSurfaceVariant, thickness = 1.dp)
+
         // Chat Message List
         LazyColumn(
             modifier = Modifier
@@ -145,6 +221,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
 fun ChatBubble(msg: ChatMessage, onConfirmTool: (String, String) -> Unit) {
     val isUser = msg.sender == MessageSender.USER
     val isTool = msg.sender == MessageSender.TOOL_OUTPUT
+    val isSystem = msg.sender == MessageSender.SYSTEM
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -164,6 +241,7 @@ fun ChatBubble(msg: ChatMessage, onConfirmTool: (String, String) -> Unit) {
                     when {
                         isUser -> PrimaryAccent
                         isTool -> AmoledSurfaceVariant
+                        isSystem -> AmoledSurfaceVariant.copy(alpha = 0.8f)
                         else -> AmoledSurface
                     }
                 )
@@ -171,7 +249,7 @@ fun ChatBubble(msg: ChatMessage, onConfirmTool: (String, String) -> Unit) {
         ) {
             Text(
                 text = msg.text,
-                color = TextPrimary,
+                color = if (isSystem) IndicGold else TextPrimary,
                 fontSize = 15.sp,
                 lineHeight = 22.sp
             )

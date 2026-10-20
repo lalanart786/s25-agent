@@ -1,6 +1,7 @@
 package com.agent.s25.presentation.chat
 
 import android.app.Application
+import android.net.Uri
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -33,24 +34,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
     val mcpClient = McpClient(application)
     val toolRegistry: ToolRegistry? = memoryManager?.let { ToolRegistry(mcpClient, it) }
     private val llamaEngine = LlamaEngine()
+    val loadedModelName = llamaEngine.loadedModelName
 
     private var tts: TextToSpeech? = null
     private var isTtsReady = false
 
-    private val _messages = MutableStateFlow<List<ChatMessage>>(listOf(
-        ChatMessage(
-            sender = MessageSender.AGENT,
-            text = "નમસ્તે કિશનભાઈ! 🙏 હું તમારો S25 Personal Agent છું.\n\n" +
-                "તમે ગુજરાતી, હિન્દી કે English માં કોઈપણ સવાલ પૂછી શકો છો.\n\n" +
-                if (!llamaEngine.isNativeAvailable) {
-                    "⚠️ AI model not loaded yet. Place a .gguf file in:\n" +
-                    "`/sdcard/Download/s25-agent/models/`\n" +
-                    "and restart the app."
-                } else {
-                    "✅ On-device AI engine ready!"
-                }
-        )
-    ))
+    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages = _messages.asStateFlow()
 
     private val _isGenerating = MutableStateFlow(false)
@@ -61,11 +50,63 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
 
     init {
         tts = TextToSpeech(application, this)
+        val initialModel = llamaEngine.autoScanAndLoad(application)
+
+        val welcomeText = if (initialModel != null) {
+            "નમસ્તે કિશનભાઈ! 🙏 હું તમારો S25 Personal Agent છું.\n\n" +
+            "✅ **Model Active**: $initialModel\n" +
+            "Snapdragon 8 Elite ઓન-ડિવાઇસ એન્જિન તૈયાર છે.\n\n" +
+            "તમે ગુજરાતી, હિન્દી કે English માં કોઈપણ સવાલ પૂછી શકો છો."
+        } else {
+            "નમસ્તે કિશનભાઈ! 🙏 હું તમારો S25 Personal Agent છું.\n\n" +
+            "⚠️ **No GGUF Model Loaded Yet**\n\n" +
+            "તમારું ડાઉનલોડ કરેલું મોડલ સિલેક્ટ કરવા ઉપર **'📂 Select Model File'** બટન દબાવો, અથવા ફાઇલને અહીં મૂકો:\n" +
+            "`Internal Storage > Download > s25-agent > models/`"
+        }
+
+        _messages.value = listOf(
+            ChatMessage(sender = MessageSender.AGENT, text = welcomeText)
+        )
     }
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             isTtsReady = true
+        }
+    }
+
+    fun selectModelUri(uri: Uri) {
+        viewModelScope.launch {
+            _isGenerating.value = true
+            val success = llamaEngine.loadModelFromUri(getApplication(), uri)
+            _isGenerating.value = false
+            if (success) {
+                val name = llamaEngine.loadedModelName.value
+                _messages.value = _messages.value + ChatMessage(
+                    sender = MessageSender.SYSTEM,
+                    text = "✅ Model loaded successfully: $name\nSnapdragon 8 Elite inference engine active."
+                )
+            } else {
+                _messages.value = _messages.value + ChatMessage(
+                    sender = MessageSender.SYSTEM,
+                    text = "❌ Failed to load the selected model file."
+                )
+            }
+        }
+    }
+
+    fun refreshScan() {
+        val detected = llamaEngine.autoScanAndLoad(getApplication())
+        if (detected != null) {
+            _messages.value = _messages.value + ChatMessage(
+                sender = MessageSender.SYSTEM,
+                text = "✅ Model detected and loaded: $detected"
+            )
+        } else {
+            _messages.value = _messages.value + ChatMessage(
+                sender = MessageSender.SYSTEM,
+                text = "⚠️ No .gguf model found in Download/s25-agent/models/ yet. Tap '📂 Select Model' to pick directly from Downloads."
+            )
         }
     }
 
