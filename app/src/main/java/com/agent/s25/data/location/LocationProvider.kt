@@ -10,7 +10,7 @@ import com.agent.s25.data.model.SpatialEntity
 import com.agent.s25.service.GeofenceBroadcastReceiver
 import com.google.android.gms.location.*
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 class LocationProvider(private val context: Context) {
     private val fusedClient: FusedLocationProviderClient =
