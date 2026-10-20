@@ -338,7 +338,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                     addProperty("tool", "create_calendar_event")
                     addProperty("appName", "Google / Samsung Calendar")
                     addProperty("title", "Lalan Art Review Meeting")
-                    addProperty("description", "Scheduled via S25 Muse Agent")
+                    addProperty("description", "Scheduled via Jerry (My Agent)")
                     addProperty("hour", 11)
                     addProperty("minute", 30)
                 }

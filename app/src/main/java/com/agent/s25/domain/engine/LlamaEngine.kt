@@ -21,14 +21,14 @@ class LlamaEngine {
         private const val IDLE_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
 
         private val NO_MODEL_RESPONSE = """
-નમસ્તે! 🙏 I'm your S25 Ultra Personal Agent.
+નમસ્તે! 🙏 I'm Jerry — your My Agent on-device intelligence.
 
 ⚠️ **No GGUF model loaded yet.**
 
 Please place your downloaded model file in:
 `Internal Storage > Download > s25-agent > models/`
 
-Or tap **"📂 Select Model File"** at the top to pick your `.gguf` file directly!
+Or tap **"📂 Select"** at the top to pick your `.gguf` file directly!
         """.trimIndent()
     }
 
