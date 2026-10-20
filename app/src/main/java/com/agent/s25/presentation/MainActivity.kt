@@ -206,7 +206,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         when (selectedTab) {
                             0 -> ChatScreen(viewModel = chatViewModel)
-                            1 -> GoalsScreen()
+                            1 -> GoalsScreen(db = db)
                             2 -> if (db != null) MemoryVaultScreen(db = db) else PlaceholderScreen("Memory Vault initializing...")
                             3 -> McpHubScreen(mcpClient = chatViewModel.mcpClient)
                         }

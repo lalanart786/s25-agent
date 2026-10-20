@@ -26,6 +26,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agent.s25.presentation.theme.*
 
+import com.agent.s25.data.db.MemoryDatabase
+import com.agent.s25.data.model.GoalEntity
+import kotlinx.coroutines.launch
+
 enum class GoalCategory(val label: String, val color: Color, val icon: ImageVector) {
     ALL("All", ElectricIndigo, Icons.Default.AllInclusive),
     SPATIAL("Spatial", SoftCyan, Icons.Default.Place),
@@ -47,8 +51,12 @@ data class GoalItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GoalsScreen() {
-    var goals by remember {
+fun GoalsScreen(db: MemoryDatabase? = null) {
+    val coroutineScope = rememberCoroutineScope()
+    val dbGoalsState = db?.goalDao()?.getAllGoals()?.collectAsState(initial = emptyList())
+    val dbGoals = dbGoalsState?.value ?: emptyList()
+
+    var localGoals by remember {
         mutableStateOf(
             listOf(
                 GoalItem(
@@ -103,6 +111,29 @@ fun GoalsScreen() {
                 )
             )
         )
+    }
+
+    // Use Room database goals if available, otherwise fallback to local goals
+    val goals = if (db != null && dbGoals.isNotEmpty()) {
+        dbGoals.map { entity ->
+            val cat = try {
+                GoalCategory.valueOf(entity.category)
+            } catch (e: Exception) {
+                GoalCategory.SPATIAL
+            }
+            GoalItem(
+                id = entity.id.toString(),
+                title = entity.title,
+                description = entity.description,
+                category = cat,
+                triggerInfo = entity.triggerInfo,
+                isActive = entity.isActive,
+                lastTriggered = entity.lastTriggered,
+                priority = entity.priority
+            )
+        }
+    } else {
+        localGoals
     }
 
     var selectedCategory by remember { mutableStateOf(GoalCategory.ALL) }
@@ -267,12 +298,30 @@ fun GoalsScreen() {
                 GoalCard(
                     goal = goal,
                     onToggle = { newState ->
-                        goals = goals.map {
-                            if (it.id == goal.id) it.copy(isActive = newState) else it
+                        if (db != null) {
+                            coroutineScope.launch {
+                                val longId = goal.id.toLongOrNull()
+                                if (longId != null) {
+                                    db.goalDao().toggleGoalActive(longId, newState)
+                                }
+                            }
+                        } else {
+                            localGoals = localGoals.map {
+                                if (it.id == goal.id) it.copy(isActive = newState) else it
+                            }
                         }
                     },
                     onDelete = {
-                        goals = goals.filterNot { it.id == goal.id }
+                        if (db != null) {
+                            coroutineScope.launch {
+                                val longId = goal.id.toLongOrNull()
+                                if (longId != null) {
+                                    db.goalDao().deleteGoal(longId)
+                                }
+                            }
+                        } else {
+                            localGoals = localGoals.filterNot { it.id == goal.id }
+                        }
                     }
                 )
             }
@@ -378,17 +427,33 @@ fun GoalsScreen() {
                 Button(
                     onClick = {
                         if (newTitle.isNotBlank()) {
-                            goals = listOf(
-                                GoalItem(
-                                    title = newTitle.trim(),
-                                    description = newDesc.trim().ifBlank { "Proactive agent automation" },
-                                    category = newCategory,
-                                    triggerInfo = newTrigger.trim().ifBlank { "Autonomous event trigger" },
-                                    isActive = true,
-                                    lastTriggered = "Armed • New Mission",
-                                    priority = "HIGH"
-                                )
-                            ) + goals
+                            if (db != null) {
+                                coroutineScope.launch {
+                                    db.goalDao().insertGoal(
+                                        GoalEntity(
+                                            title = newTitle.trim(),
+                                            description = newDesc.trim().ifBlank { "Proactive agent automation" },
+                                            category = newCategory.name,
+                                            triggerInfo = newTrigger.trim().ifBlank { "Autonomous event trigger" },
+                                            isActive = true,
+                                            lastTriggered = "Armed • New Mission",
+                                            priority = "HIGH"
+                                        )
+                                    )
+                                }
+                            } else {
+                                localGoals = listOf(
+                                    GoalItem(
+                                        title = newTitle.trim(),
+                                        description = newDesc.trim().ifBlank { "Proactive agent automation" },
+                                        category = newCategory,
+                                        triggerInfo = newTrigger.trim().ifBlank { "Autonomous event trigger" },
+                                        isActive = true,
+                                        lastTriggered = "Armed • New Mission",
+                                        priority = "HIGH"
+                                    )
+                                ) + localGoals
+                            }
                             showAddDialog = false
                         }
                     },

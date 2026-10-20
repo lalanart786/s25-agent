@@ -39,6 +39,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
     val isGenerating by viewModel.isGenerating.collectAsState()
     val isListening by viewModel.isListening.collectAsState()
     val loadedModelName by viewModel.loadedModelName.collectAsState()
+    val liveActionStep by viewModel.liveActionStep.collectAsState()
     var inputText by remember { mutableStateOf("") }
 
     // Direct File Picker for .gguf model files
@@ -66,7 +67,8 @@ fun ChatScreen(viewModel: ChatViewModel) {
         LiveThreeLayerStatusBanner(
             isGenerating = isGenerating,
             isListening = isListening,
-            hasModel = loadedModelName != null
+            hasModel = loadedModelName != null,
+            actionStep = liveActionStep
         )
 
         // Chat Message List
@@ -300,7 +302,8 @@ private fun MetaMuseAgentAvatar(isActive: Boolean, isBusy: Boolean) {
 private fun LiveThreeLayerStatusBanner(
     isGenerating: Boolean,
     isListening: Boolean,
-    hasModel: Boolean
+    hasModel: Boolean,
+    actionStep: String = ""
 ) {
     val layer1Text = when {
         isGenerating -> "Thinking..."
@@ -316,11 +319,15 @@ private fun LiveThreeLayerStatusBanner(
         else -> TextMuted
     }
 
-    val layer2Text = when {
-        isGenerating -> "Snapdragon 8 Elite • Synthesizing response"
-        isListening -> "Sampling UnifiedAudioRouter stream in Gujarati/Hindi/English"
-        hasModel -> "Ready for voice or text prompt"
-        else -> "No model loaded. Tap 'Select' to load .gguf"
+    val layer2Text = if (actionStep.isNotBlank()) {
+        actionStep
+    } else {
+        when {
+            isGenerating -> "Snapdragon 8 Elite • Synthesizing response"
+            isListening -> "Sampling UnifiedAudioRouter stream in Gujarati/Hindi/English"
+            hasModel -> "Ready for voice or text prompt"
+            else -> "No model loaded. Tap 'Select' to load .gguf"
+        }
     }
 
     Box(
