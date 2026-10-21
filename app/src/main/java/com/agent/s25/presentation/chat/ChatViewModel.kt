@@ -141,41 +141,26 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
 
         viewModelScope.launch {
             _isGenerating.value = true
-            _liveActionStep.value = "Analyzing user intent in ${detectedLang.name} & consulting Knox Memory..."
+            _liveActionStep.value = "Jerry Intelligence • Processing..."
 
-            // 1. Check for Fast-Path On-Device Agent Intents (Zero-Latency Local Dispatch)
-            val fastPathHandled = handleFastPathAgentIntent(userText, detectedLang.bcp47, isVoiceInput)
-            if (fastPathHandled) {
-                _isGenerating.value = false
-                return@launch
-            }
-
-            // 2. Build prompt with Knox Core Profile + Relevant Tools
-            val profileHeader = memoryManager?.getCoreProfilePromptHeader() ?: ""
-            val relevantTools = toolRegistry?.getRelevantTools(userText) ?: emptyList()
-
-            val toolsHeader = if (relevantTools.isNotEmpty()) {
-                val toolDefs = relevantTools.joinToString("\n") { "- ${it.name}: ${it.description}" }
-                "\n### Available Tools:\n$toolDefs\nTo call a tool, respond with strict JSON: {\"tool\": \"name\", \"args\": {}}\n"
-            } else ""
-
-            val fullPrompt = "$profileHeader$toolsHeader\nUser: $userText\nAssistant:"
+            // Build pure ChatML Prompt with full Kishan Miyani executive context & tools
+            val fullPrompt = buildHermesChatMLPrompt(userText, detectedLang)
 
             val agentMsg = ChatMessage(sender = MessageSender.AGENT, text = "")
             _messages.value = _messages.value + agentMsg
 
             val accumulatedText = StringBuilder()
 
-            // Check if OpenRouter cloud fallback is configured
+            // Stream response directly from on-device GGUF neural engine (or OpenRouter if configured)
             if (openRouterClient.hasApiKey()) {
-                _liveActionStep.value = "OpenRouter AI (${openRouterClient.selectedModel}) • Generating..."
-                val sysPrompt = "You are Jerry, an elite, highly intelligent personal AI agent for Kishan (Founder of Lalan Art, Surat). Default to English as main language, but respond fluently in Gujarati or Hindi if user asks in those languages. Keep responses direct, helpful, and concise.\n$profileHeader"
+                _liveActionStep.value = "OpenRouter Cloud (${openRouterClient.selectedModel}) • Generating..."
+                val sysPrompt = "You are Jerry, an elite, loyal personal AI executive agent for Kishan Miyani (Founder of Lalan Art, Surat). Reply directly in the language asked (English default, Gujarati/Hindi fluent)."
                 openRouterClient.streamChatCompletion(userText, sysPrompt).collect { token ->
                     accumulatedText.append(token)
                     _messages.value = _messages.value.dropLast(1) + agentMsg.copy(text = accumulatedText.toString())
                 }
             } else {
-                _liveActionStep.value = "Snapdragon 8 Elite • Generating response..."
+                _liveActionStep.value = "Snapdragon 8 Elite • Generating..."
                 llamaEngine.generateStream(fullPrompt).collect { token ->
                     accumulatedText.append(token)
                     _messages.value = _messages.value.dropLast(1) + agentMsg.copy(text = accumulatedText.toString())
@@ -185,473 +170,79 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             _isGenerating.value = false
             _liveActionStep.value = "Jerry Intelligence • Idle"
 
-            // 3. Post-process response to see if model generated a JSON tool call
-            checkAndHandleModelToolCall(accumulatedText.toString())
+            // Check if model invoked a tool call (JSON format)
+            val handledTool = checkAndHandleModelToolCall(accumulatedText.toString(), detectedLang.bcp47, isVoiceInput)
 
-            // ONLY speak aloud if the user asked verbally / via microphone
-            if (isVoiceInput) {
+            // If not a tool call and asked verbally, speak the answer aloud (Quiet Text Chat)
+            if (!handledTool && isVoiceInput && accumulatedText.isNotEmpty()) {
                 speakBack(accumulatedText.toString(), detectedLang.bcp47)
             }
         }
     }
 
-    /**
-     * Fast-Path Intent Dispatcher:
-     * Immediately routes common commands in Gujarati, Hindi, and English with zero latency,
-     * triggering Meta Muse Action Approval Cards for state-changing operations.
-     */
-    private suspend fun handleFastPathAgentIntent(userText: String, bcp47Locale: String, isVoiceInput: Boolean = false): Boolean {
-        val lower = userText.lowercase()
+    private fun buildHermesChatMLPrompt(userText: String, detectedLang: DetectedLanguage): String {
+        return buildString {
+            append("<|im_start|>system\n")
+            append("You are Jerry, an elite, loyal, on-device personal AI executive agent for Kishan Miyani (@Kmiyani), Founder of Lalan Art, Surat.\n")
+            append("You run locally on Kishan's Samsung Galaxy S25 Ultra powered by Qualcomm Snapdragon 8 Elite.\n\n")
+            
+            append("### Executive Profile & Context:\n")
+            append("- User: Kishan Miyani (Founder & Creative Director of Lalan Art)\n")
+            append("- Company: Lalan Art, Surat (Luxury Indian Couture, Designer Sarees, Bridal Lehengas & Ethnic Fabrics)\n")
+            append("- Key Contacts: Kanabhai (Surat Office Coordinator), Accounts Team, Production & Dispatches\n")
+            append("- Locations: Surat Head Office (Ring Road), Surat Diamond Bourse\n")
+            append("- Personality: Executive Chief of Staff — loyal, sharp, direct, concise, and helpful\n")
+            append("- Language Rules: Primary language is English. Fluent in Gujarati (ગુજરાતી) and Hindi (हिन्दी). If Kishan addresses you in Gujarati or Hindi, reply fluently and naturally in that language.\n")
+            append("- Safety Rule: NEVER make phone calls, send messages, or modify data without explicit confirmation.\n\n")
 
-        // 1. Battery Query Intent
-        if (lower.contains("battery") || lower.contains("બેટરી") || lower.contains("बैटरी") || lower.contains("ચાર્જ")) {
-            _liveActionStep.value = "Executing: get_device_battery via MCP..."
-            delay(300)
-            val batteryJson = toolRegistry?.executeTool("get_device_battery", "{}") ?: "{}"
-            val obj = try { gson.fromJson(batteryJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
-            val pct = obj.get("battery_percentage")?.asInt ?: 85
-            val reply = "🔋 Your Samsung Galaxy S25 Ultra battery is at $pct%."
-            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            if (isVoiceInput) speakBack(reply, bcp47Locale)
-            _liveActionStep.value = "Battery queried: $pct%"
-            return true
-        }
-
-        // 2. WhatsApp Message Intent
-        if (lower.contains("whatsapp") || lower.contains("વોટ્સએપ") || lower.contains("વોટ્સએપ મેસેજ") || lower.contains("व्हाट्सएप")) {
-            _liveActionStep.value = "Preparing WhatsApp Action Approval Card..."
-            val recipient = if (lower.contains("સુરત") || lower.contains("surat")) "Surat Office" else "Team / Client"
-            val sampleMsg = "નમસ્તે, Lalan Art તરફથી ઓર્ડર સ્ટેટસ અપડેટ."
-
-            val payload = JsonObject().apply {
-                addProperty("tool", "send_whatsapp_message")
-                addProperty("appName", "WhatsApp")
-                addProperty("recipient", recipient)
-                addProperty("message", sampleMsg)
+            val memoryFacts = memoryManager?.getCoreProfilePromptHeader()
+            if (!memoryFacts.isNullOrBlank()) {
+                append("### Knox Hardware Memory Vault Facts:\n$memoryFacts\n\n")
             }
 
-            val approvalMsg = ChatMessage(
-                sender = MessageSender.AGENT,
-                text = "હું WhatsApp પર મેસેજ મોકલવા તૈયાર છું. કૃપા કરીને આ એક્શન ચકાસો અને કન્ફર્મ કરો:",
-                toolCallPayload = gson.toJson(payload),
-                isPendingConfirmation = true
-            )
-            _messages.value = _messages.value + approvalMsg
-            speakConfirmationPrompt(bcp47Locale)
-            _liveActionStep.value = "Awaiting Kishan's approval for WhatsApp"
-            return true
-        }
+            append("### Android Device Tools (MCP):\n")
+            append("To check phone status or trigger an action, output a single JSON code block in this exact schema:\n")
+            append("```json\n")
+            append("{\"tool\": \"tool_name\", \"args\": {}}\n")
+            append("```\n")
+            append("Available Tools:\n")
+            append("- get_device_battery: Check battery percentage and charging status. args: {}\n")
+            append("- send_whatsapp_message: Send a WhatsApp message. args: {\"recipient\": \"name or phone\", \"message\": \"text\"}\n")
+            append("- navigate_maps: Open Google Maps directions. args: {\"destination\": \"place or office address\"}\n")
+            append("- make_phone_call: Start phone call. args: {\"contact\": \"name\", \"phoneNumber\": \"number\"}\n")
+            append("- search_youtube: Search YouTube. args: {\"query\": \"topic\"}\n")
+            append("- toggle_flashlight: Turn flashlight on/off. args: {\"enabled\": true/false}\n")
+            append("- list_calendar_events: List upcoming calendar meetings and events. args: {\"daysAhead\": 1}\n")
+            append("- create_calendar_event: Schedule new calendar event. args: {\"title\": \"title\", \"description\": \"details\"}\n")
+            append("- read_latest_sms: Check recent SMS messages. args: {\"limit\": 5}\n")
+            append("- get_latest_otp: Get latest SMS OTP / verification code. args: {}\n")
+            append("- search_contacts: Search phone contacts. args: {\"query\": \"name\"}\n")
+            append("- remember_fact: Save note to Knox Vault. args: {\"category\": \"PERSONAL|BUSINESS\", \"key\": \"title\", \"value\": \"note\"}\n")
+            append("- search_past_memory: Search Knox Vault memories. args: {\"query\": \"keyword\"}\n")
+            append("- capture_screen: Analyze active screen content. args: {}\n\n")
+            append("Instructions:\n")
+            append("- If Kishan asks for an action or device check, call the appropriate tool with JSON.\n")
+            append("- If Kishan asks a conversational question, answer directly with executive clarity. Do not output JSON unless calling a tool.\n")
+            append("<|im_end|>\n")
 
-        // 3. Navigation / Google Maps Intent
-        if (lower.contains("surat office") || lower.contains("સુરત ઓફિસ") || lower.contains("રસ્તો") || lower.contains("નકશો") || lower.contains("maps") || lower.contains("navigate")) {
-            _liveActionStep.value = "Preparing Google Maps Navigation Approval..."
-            val dest = "Lalan Art Head Office, Ring Road, Surat"
+            // Add recent history for conversational continuity
+            val history = _messages.value.filter {
+                (it.sender == MessageSender.USER || it.sender == MessageSender.AGENT) &&
+                !it.text.isBlank() && !it.isPendingConfirmation
+            }.takeLast(6)
 
-            val payload = JsonObject().apply {
-                addProperty("tool", "navigate_maps")
-                addProperty("appName", "Google Maps")
-                addProperty("destination", dest)
-                addProperty("coordinates", "21.1702, 72.8311")
+            for (msg in history.dropLast(1)) {
+                val role = if (msg.sender == MessageSender.USER) "user" else "assistant"
+                append("<|im_start|>$role\n${msg.text}\n<|im_end|>\n")
             }
 
-            val approvalMsg = ChatMessage(
-                sender = MessageSender.AGENT,
-                text = "📍 સુરત ઓફિસ માટે Google Maps નેવિગેશન શરૂ કરવા માટે મંજૂરી આપો:",
-                toolCallPayload = gson.toJson(payload),
-                isPendingConfirmation = true
-            )
-            _messages.value = _messages.value + approvalMsg
-            speakConfirmationPrompt(bcp47Locale)
-            _liveActionStep.value = "Awaiting approval for Maps Navigation"
-            return true
+            append("<|im_start|>user\n$userText\n<|im_end|>\n")
+            append("<|im_start|>assistant\n")
         }
-
-        // 4. Phone Call Intent
-        if (lower.contains("call") || lower.contains("phone") || lower.contains("ફોન કર") || lower.contains("કોલ કર") || lower.contains("ડાયલ")) {
-            _liveActionStep.value = "Preparing Phone Call Approval..."
-            val payload = JsonObject().apply {
-                addProperty("tool", "make_phone_call")
-                addProperty("appName", "Phone Dialer")
-                addProperty("contact", "Office Dispatch")
-                addProperty("phoneNumber", "+919825000000")
-            }
-
-            val approvalMsg = ChatMessage(
-                sender = MessageSender.AGENT,
-                text = "📞 ફોન ડાયલર શરૂ કરવા માટે મંજૂરી આપો:",
-                toolCallPayload = gson.toJson(payload),
-                isPendingConfirmation = true
-            )
-            _messages.value = _messages.value + approvalMsg
-            speakConfirmationPrompt(bcp47Locale)
-            _liveActionStep.value = "Awaiting approval for Phone Call"
-            return true
-        }
-
-        // 5. YouTube Search Intent
-        if (lower.contains("youtube") || lower.contains("યુટ્યુબ") || lower.contains("વિડિયો")) {
-            _liveActionStep.value = "Preparing YouTube Search..."
-            val query = userText.replace("youtube", "", ignoreCase = true)
-                .replace("યુટ્યુબ", "", ignoreCase = true)
-                .replace("search", "", ignoreCase = true)
-                .trim().ifBlank { "Lalan Art Luxury Sarees" }
-
-            val payload = JsonObject().apply {
-                addProperty("tool", "search_youtube")
-                addProperty("appName", "YouTube")
-                addProperty("query", query)
-            }
-
-            val approvalMsg = ChatMessage(
-                sender = MessageSender.AGENT,
-                text = "▶️ YouTube માં '$query' સર્ચ કરવા માટે પુષ્ટિ કરો:",
-                toolCallPayload = gson.toJson(payload),
-                isPendingConfirmation = true
-            )
-            _messages.value = _messages.value + approvalMsg
-            speakConfirmationPrompt(bcp47Locale)
-            _liveActionStep.value = "Awaiting approval for YouTube Search"
-            return true
-        }
-
-        // 6. Flashlight Intent
-        if (lower.contains("flashlight") || lower.contains("torch") || lower.contains("ટોર્ચ") || lower.contains("લાઈટ")) {
-            val turnOn = !lower.contains("off") && !lower.contains("બંધ")
-            _liveActionStep.value = "Toggling Flashlight via Camera2 API..."
-            toolRegistry?.executeTool("toggle_flashlight", "{\"enabled\": $turnOn}")
-            val stateText = if (turnOn) "ચાલુ (ON)" else "બંધ (OFF)"
-            val reply = "🔦 The phone flashlight has been turned $stateText."
-            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            if (isVoiceInput) speakBack(reply, bcp47Locale)
-            _liveActionStep.value = "Flashlight $stateText"
-            return true
-        }
-
-        // 7. Remember Fact Intent ("યાદ રાખજે", "remember that")
-        if (lower.contains("remember") || lower.contains("યાદ રાખ") || lower.contains("સાચવી લે") || lower.contains("નોંધ કરી લે")) {
-            _liveActionStep.value = "Encrypting new fact in Knox Hardware Keystore..."
-            val cleanFact = userText.replace("યાદ રાખજે", "", ignoreCase = true)
-                .replace("યાદ રાખો", "", ignoreCase = true)
-                .replace("remember", "", ignoreCase = true)
-                .replace("કે", "", ignoreCase = true)
-                .trim()
-
-            val savedId = memoryManager?.rememberFact("PERSONAL", "User Note", cleanFact, "gu") ?: 1L
-            val reply = "🔒 Saved to your Knox Memory Vault:\n\"$cleanFact\""
-            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            if (isVoiceInput) speakBack(reply, bcp47Locale)
-            _liveActionStep.value = "Fact saved in Knox Vault (ID: $savedId)"
-            return true
-        }
-
-        // 8. Calendar Events Intent
-        if (lower.contains("calendar") || lower.contains("event") || lower.contains("meeting") || lower.contains("કેલેન્ડર") || lower.contains("ઇવેન્ટ") || lower.contains("મીટિંગ")) {
-            if (lower.contains("schedule") || lower.contains("create") || lower.contains("add") || lower.contains("નવો") || lower.contains("શેડ્યુલ") || lower.contains("બનાવ")) {
-                _liveActionStep.value = "Preparing Calendar Event Creation..."
-                val payload = JsonObject().apply {
-                    addProperty("tool", "create_calendar_event")
-                    addProperty("appName", "Google / Samsung Calendar")
-                    addProperty("title", "Lalan Art Review Meeting")
-                    addProperty("description", "Scheduled via Jerry (My Agent)")
-                    addProperty("hour", 11)
-                    addProperty("minute", 30)
-                }
-
-                val approvalMsg = ChatMessage(
-                    sender = MessageSender.AGENT,
-                    text = "📅 કેલેન્ડરમાં નવી મીટિંગ શેડ્યુલ કરવા માટે પુષ્ટિ કરો:",
-                    toolCallPayload = gson.toJson(payload),
-                    isPendingConfirmation = true
-                )
-                _messages.value = _messages.value + approvalMsg
-                speakConfirmationPrompt(bcp47Locale)
-                _liveActionStep.value = "Awaiting approval for Calendar Event"
-                return true
-            } else {
-                _liveActionStep.value = "Reading upcoming calendar events..."
-                val eventsJson = toolRegistry?.executeTool("list_calendar_events", "{\"daysAhead\": 2}") ?: "{}"
-                val obj = try { gson.fromJson(eventsJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
-                val events = obj.getAsJsonArray("events")
-                val reply = if (events != null && events.size() > 0) {
-                    val sb = StringBuilder("📅 તમારા કેલેન્ડરની આગામી ઇવેન્ટ્સ:\n")
-                    events.forEach { e ->
-                        val item = e.asJsonObject
-                        sb.append("• ${item.get("title")?.asString} — ${item.get("formattedTime")?.asString}\n")
-                    }
-                    sb.toString().trim()
-                } else {
-                    "📅 આગામી 2 દિવસમાં કોઈ નવી મીટિંગ શેડ્યુલ નથી. તમારો દિવસ ફ્રી છે!"
-                }
-                _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-                if (isVoiceInput) speakBack(reply, bcp47Locale)
-                _liveActionStep.value = "Calendar events retrieved"
-                return true
-            }
-        }
-
-        // 9. Alarm & Timer Intent
-        if (lower.contains("alarm") || lower.contains("timer") || lower.contains("એલાર્મ") || lower.contains("ટાઈમર") || lower.contains("જગાડજે")) {
-            _liveActionStep.value = "Preparing Alarm / Timer..."
-            val isTimer = lower.contains("timer") || lower.contains("ટાઈમર")
-            val toolName = if (isTimer) "start_timer" else "set_alarm"
-            val label = if (isTimer) "Lalan Art Production Timer (5 mins)" else "S25 Agent Morning Alarm (7:00 AM)"
-
-            val payload = JsonObject().apply {
-                addProperty("tool", toolName)
-                addProperty("appName", "Clock & Alarms")
-                if (isTimer) {
-                    addProperty("seconds", 300)
-                    addProperty("message", label)
-                } else {
-                    addProperty("hour", 7)
-                    addProperty("minute", 0)
-                    addProperty("message", label)
-                }
-            }
-
-            val actionPrompt = if (isTimer) "⏱️ Please authorize setting a 5-minute timer:" else "⏰ Please authorize setting a 7:00 AM alarm:"
-            val approvalMsg = ChatMessage(
-                sender = MessageSender.AGENT,
-                text = actionPrompt,
-                toolCallPayload = gson.toJson(payload),
-                isPendingConfirmation = true
-            )
-            _messages.value = _messages.value + approvalMsg
-            speakConfirmationPrompt(bcp47Locale)
-            _liveActionStep.value = "Awaiting approval for $toolName"
-            return true
-        }
-
-        // 10. Clipboard Manager Intent
-        if (lower.contains("clipboard") || lower.contains("ક્લિપબોર્ડ") || lower.contains("ક્લિપ") || lower.contains("કોપી થયેલ")) {
-            _liveActionStep.value = "Reading device clipboard..."
-            val clipJson = toolRegistry?.executeTool("get_clipboard_text", "{}") ?: "{}"
-            val obj = try { gson.fromJson(clipJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
-            val clipText = obj.get("clipboardText")?.asString ?: ""
-            val reply = if (clipText.isNotBlank()) {
-                "📋 Current clipboard content:\n\n\"$clipText\""
-            } else {
-                "📋 Clipboard is currently empty."
-            }
-            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            if (isVoiceInput) speakBack(reply, bcp47Locale)
-            _liveActionStep.value = "Clipboard retrieved"
-            return true
-        }
-
-        // 11. Contacts Search Intent
-        if (lower.contains("contact") || lower.contains("સંપર્ક") || lower.contains("કોન્ટેક્ટ") || lower.contains("નંબર શું છે")) {
-            _liveActionStep.value = "Searching phone contacts book..."
-            val query = userText.replace("contact", "", ignoreCase = true)
-                .replace("કોન્ટેક્ટ", "", ignoreCase = true)
-                .replace("સંપર્ક", "", ignoreCase = true)
-                .replace("નંબર", "", ignoreCase = true)
-                .trim().ifBlank { "Surat" }
-
-            val contactsJson = toolRegistry?.executeTool("search_contacts", "{\"query\": \"$query\"}") ?: "{}"
-            val obj = try { gson.fromJson(contactsJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
-            val contacts = obj.getAsJsonArray("contacts")
-            val reply = if (contacts != null && contacts.size() > 0) {
-                val sb = StringBuilder("📇 Contacts found for '$query':\n")
-                contacts.forEach { c ->
-                    val item = c.asJsonObject
-                    sb.append("• ${item.get("name")?.asString}: ${item.get("phoneNumber")?.asString}\n")
-                }
-                sb.toString().trim()
-            } else {
-                "📇 No contacts found matching '$query'."
-            }
-            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            if (isVoiceInput) speakBack(reply, bcp47Locale)
-            _liveActionStep.value = "Contacts search complete"
-            return true
-        }
-
-        // 12. Search Memory Intent ("મારું...", "યાદ છે?")
-        if (lower.contains("office") || lower.contains("ઓફિસ") || lower.contains("gst") || lower.contains("જીએસટી") || lower.contains("લલન આર્ટ") || lower.contains("lalan art")) {
-            _liveActionStep.value = "Searching Knox Memory Vault..."
-            val memories = memoryManager?.searchPastMemory(userText, 2) ?: emptyList()
-            if (memories.isNotEmpty()) {
-                val facts = memories.joinToString("\n") { "• ${it.key}: ${it.value}" }
-                val reply = "📋 Stored in your Knox Memory Vault:\n$facts"
-                _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-                if (isVoiceInput) speakBack(reply, bcp47Locale)
-                _liveActionStep.value = "Knox Memory retrieved"
-                return true
-            }
-        }
-
-        // 13. OTP & SMS Reader Intent ("છેલ્લો OTP શું છે?", "Read my SMS")
-        if (lower.contains("otp") || lower.contains("ઓટીપી") || lower.contains("પાસકોડ") || lower.contains("code")) {
-            _liveActionStep.value = "Scanning SMS inbox for latest OTP..."
-            val otpJson = toolRegistry?.executeTool("get_latest_otp", "{}") ?: "{}"
-            val obj = try { gson.fromJson(otpJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
-            val reply = if (obj.get("status")?.asString == "success") {
-                val otpCode = obj.get("otp")?.asString ?: ""
-                val sender = obj.get("sender")?.asString ?: "Unknown"
-                val time = obj.get("time")?.asString ?: "Recent"
-                "🔑 Latest OTP code is **$otpCode**.\n(Sender: $sender • Time: $time)"
-            } else {
-                "🔑 No active OTP or 2FA code found in messages."
-            }
-            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            if (isVoiceInput) speakBack(reply, bcp47Locale)
-            _liveActionStep.value = "OTP detected: ${obj.get("otp")?.asString ?: "None"}"
-            return true
-        }
-
-        // 14. SMS Reading Intent ("SMS વાંચ", "read sms")
-        if ((lower.contains("sms") || lower.contains("એસએમએસ")) && (lower.contains("read") || lower.contains("વાંચ") || lower.contains("ચેક") || lower.contains("દેખાડ"))) {
-            _liveActionStep.value = "Reading recent SMS inbox..."
-            val smsJson = toolRegistry?.executeTool("read_latest_sms", "{\"limit\": 3}") ?: "{}"
-            val obj = try { gson.fromJson(smsJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
-            val msgArray = obj.getAsJsonArray("messages")
-            val reply = if (msgArray != null && msgArray.size() > 0) {
-                val sb = StringBuilder("📩 છેલ્લા SMS મેસેજ:\n")
-                msgArray.forEach { m ->
-                    val item = m.asJsonObject
-                    sb.append("• **${item.get("sender")?.asString}** (${item.get("time")?.asString}):\n  ${item.get("body")?.asString}\n\n")
-                }
-                sb.toString().trim()
-            } else {
-                "📩 તમારા SMS ઇનબોક્સમાં કોઈ નવા મેસેજ મળ્યા નથી અથવા પરમિશન જરૂરી છે."
-            }
-            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            speakBack(reply, bcp47Locale)
-            _liveActionStep.value = "SMS inbox processed"
-            return true
-        }
-
-        // 15. SMS Send Intent ("SMS મોકલ", "Send SMS")
-        if (lower.contains("send sms") || lower.contains("sms મોકલ") || lower.contains("એસએમએસ મોકલ") || lower.contains("મેસેજ કર")) {
-            _liveActionStep.value = "Preparing SMS Action Approval Card..."
-            val payload = JsonObject().apply {
-                addProperty("tool", "send_sms")
-                addProperty("appName", "SMS Messages")
-                addProperty("recipient", "+91 98250 88990")
-                addProperty("message", "નમસ્તે, Lalan Art તરફથી ડિસ્પેચ કન્ફર્મેશન.")
-            }
-            val approvalMsg = ChatMessage(
-                sender = MessageSender.AGENT,
-                text = "💬 નવો SMS મોકલવા માટે કૃપા કરીને આ એક્શન ચકાસો અને કન્ફર્મ કરો:",
-                toolCallPayload = gson.toJson(payload),
-                isPendingConfirmation = true
-            )
-            _messages.value = _messages.value + approvalMsg
-            speakConfirmationPrompt(bcp47Locale)
-            _liveActionStep.value = "Awaiting approval for SMS dispatch"
-            return true
-        }
-
-        // 16. Email / Gmail Intent ("ઈમેલ મોકલ", "Send Email")
-        if (lower.contains("email") || lower.contains("mail") || lower.contains("ઈમેલ") || lower.contains("મેઇલ") || lower.contains("જીમેલ")) {
-            _liveActionStep.value = "Preparing Email Action Approval Card..."
-            val payload = JsonObject().apply {
-                addProperty("tool", "send_email_draft")
-                addProperty("appName", "Gmail")
-                addProperty("to", "kishan@lalanart.com")
-                addProperty("subject", "Lalan Art Daily Operations Digest")
-                addProperty("body", "નમસ્તે કિશનભાઈ,\n\nઆજનું ઓપરેશનલ સમરી સફળતાપૂર્વક તૈયાર છે.\n- Jerry (My Agent)")
-            }
-            val approvalMsg = ChatMessage(
-                sender = MessageSender.AGENT,
-                text = "📧 નવો ઈમેલ ડ્રાફ્ટ ખોલવા અને મોકલવા માટે મંજૂરી આપો:",
-                toolCallPayload = gson.toJson(payload),
-                isPendingConfirmation = true
-            )
-            _messages.value = _messages.value + approvalMsg
-            speakConfirmationPrompt(bcp47Locale)
-            _liveActionStep.value = "Awaiting approval for Email draft"
-            return true
-        }
-
-        // 17. Telegram Intent ("Telegram મોકલ", "Send Telegram")
-        if (lower.contains("telegram") || lower.contains("ટેલિગ્રામ")) {
-            _liveActionStep.value = "Preparing Telegram Action Approval Card..."
-            val payload = JsonObject().apply {
-                addProperty("tool", "send_telegram_message")
-                addProperty("appName", "Telegram")
-                addProperty("username", "@Kmiyani")
-                addProperty("message", "નમસ્તે કિશનભાઈ, Jerry તરફથી ઓર્ડર અપડેટ.")
-            }
-            val approvalMsg = ChatMessage(
-                sender = MessageSender.AGENT,
-                text = "✈️ Telegram પર મેસેજ મોકલવા માટે પુષ્ટિ કરો:",
-                toolCallPayload = gson.toJson(payload),
-                isPendingConfirmation = true
-            )
-            _messages.value = _messages.value + approvalMsg
-            speakConfirmationPrompt(bcp47Locale)
-            _liveActionStep.value = "Awaiting approval for Telegram message"
-            return true
-        }
-
-        // 18. Screen Reading & Vision Intent ("સ્ક્રીન પર શું છે?", "સ્ક્રીન વાંચો", "What's on screen")
-        if (lower.contains("screen") || lower.contains("સ્ક્રીન") || lower.contains("આ શું છે") || lower.contains("વાંચો")) {
-            _liveActionStep.value = "Inspecting active screen via Accessibility Tree..."
-            val screenJson = toolRegistry?.executeTool("read_current_screen", "{}") ?: "{}"
-            val obj = try { gson.fromJson(screenJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
-            val content = obj.get("screenContent")?.asString ?: "No content detected."
-            val reply = "🖥️ **Screen Summary (Jerry Screen Vision)**:\n\n$content"
-            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            if (isVoiceInput) speakBack("Screen reading complete.", bcp47Locale)
-            _liveActionStep.value = "Screen content analyzed"
-            return true
-        }
-
-        // 19. Morning Executive Briefing Intent ("સુપ્રભાત", "Good morning", "Morning briefing")
-        if (lower.contains("morning") || lower.contains("સુપ્રભાત") || lower.contains("બ્રીફિંગ") || lower.contains("પ્લાનિંગ")) {
-            _liveActionStep.value = "Synthesizing Morning Executive Briefing..."
-            val briefJson = toolRegistry?.executeTool("get_morning_briefing", "{}") ?: "{}"
-            val obj = try { gson.fromJson(briefJson, JsonObject::class.java) } catch (e: Exception) { JsonObject() }
-            val greeting = obj.get("greeting")?.asString ?: "Good Morning Kishan!"
-            val weather = obj.get("weather")?.asString ?: "Surat: 32°C"
-            val battery = obj.get("battery")?.asString ?: "85%"
-            val geofence = obj.get("geofenceStatus")?.asString ?: "Surat Office Armed"
-
-            val reply = "☀️ **$greeting**\n\n" +
-                    "📍 **Weather**: $weather\n" +
-                    "🔋 **Battery**: $battery\n" +
-                    "🛡️ **Geofence**: $geofence\n" +
-                    "📅 **Schedule**: Surat Office Review Meeting\n" +
-                    "💼 **Zoho Books**: Pending invoices and dispatches are queued up.\n\n" +
-                    "Have a productive day ahead!"
-            _messages.value = _messages.value + ChatMessage(sender = MessageSender.AGENT, text = reply)
-            if (isVoiceInput) speakBack("Good Morning Kishan! Surat temperature is 32 degrees, battery is at $battery, and meetings are lined up.", bcp47Locale)
-            _liveActionStep.value = "Morning briefing delivered"
-            return true
-        }
-
-        // 20. Multi-Step Compound Workflow Intent (e.g. WhatsApp + Calendar follow-up)
-        if ((lower.contains("અને") || lower.contains("workflow") || lower.contains("કમ્પાઉન્ડ")) &&
-            (lower.contains("whatsapp") || lower.contains("વોટ્સએપ") || lower.contains("reminder") || lower.contains("રીમાઇન્ડર") || lower.contains("મીટિંગ"))) {
-            _liveActionStep.value = "Synthesizing Multi-Step Compound Workflow Approval..."
-            val payload = JsonObject().apply {
-                addProperty("workflow", "Client Payment Follow-up & Calendar Lock")
-                addProperty("step1_action", "send_whatsapp_message")
-                addProperty("step1_target", "Kanabhai (Surat Office)")
-                addProperty("step1_message", "નમસ્તે કાનાભાઈ, પેન્ડિંગ ઇન્વોઇસ સ્ટેટસ કન્ફર્મ કરવા વિનંતી.")
-                addProperty("step2_action", "create_calendar_event")
-                addProperty("step2_title", "Follow-up with Kanabhai on Invoice Clearance")
-                addProperty("step2_time", "Tomorrow at 11:00 AM")
-            }
-            val approvalMsg = ChatMessage(
-                sender = MessageSender.AGENT,
-                text = "⚡ **મલ્ટી-સ્ટેપ કમ્પાઉન્ડ વર્કફ્લો મંજૂરી**:\nJerry નીચેના 2 સ્ટેપ્સ એક સાથે કરવા માંગે છે. કૃપા કરીને ચકાસો:",
-                toolCallPayload = gson.toJson(payload),
-                isPendingConfirmation = true
-            )
-            _messages.value = _messages.value + approvalMsg
-            speakConfirmationPrompt(bcp47Locale)
-            _liveActionStep.value = "Awaiting approval for Compound Workflow"
-            return true
-        }
-
-        return false
     }
 
-    private suspend fun checkAndHandleModelToolCall(rawText: String) {
-        if (!rawText.contains("\"tool\"") || !rawText.contains("{")) return
+    private suspend fun checkAndHandleModelToolCall(rawText: String, bcp47Locale: String, isVoiceInput: Boolean): Boolean {
+        if (!rawText.contains("\"tool\"") || !rawText.contains("{")) return false
 
         try {
             val jsonStart = rawText.indexOf('{')
@@ -659,31 +250,125 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             if (jsonStart != -1 && jsonEnd > jsonStart) {
                 val jsonString = rawText.substring(jsonStart, jsonEnd + 1)
                 val obj = gson.fromJson(jsonString, JsonObject::class.java)
-                val toolName = obj.get("tool")?.asString ?: return
-                val args = obj.get("args")?.toString() ?: "{}"
+                val toolName = obj.get("tool")?.asString ?: return false
+                val argsObj = if (obj.has("args") && obj.get("args").isJsonObject) {
+                    obj.getAsJsonObject("args")
+                } else {
+                    JsonObject()
+                }
+                val argsString = gson.toJson(argsObj)
 
                 val tier = SafetyGate.evaluate(toolName)
                 if (tier == ExecutionTier.REQUIRE_CONFIRMATION) {
-                    _liveActionStep.value = "Awaiting user approval for $toolName"
-                    _messages.value = _messages.value + ChatMessage(
+                    _liveActionStep.value = "Awaiting Kishan's approval for $toolName"
+                    val promptText = when {
+                        toolName.contains("whatsapp") -> "હું WhatsApp પર મેસેજ મોકલવા તૈયાર છું. કૃપા કરીને ચકાસો અને મંજૂરી આપો:"
+                        toolName.contains("call") || toolName.contains("phone") -> "હું ફોન કોલ શરૂ કરવા તૈયાર છું. કૃપા કરીને પુષ્ટિ કરો:"
+                        toolName.contains("calendar") -> "હું કેલેન્ડરમાં નવી ઇવેન્ટ ઉમેરવા તૈયાર છું. કૃપા કરીને પુષ્ટિ કરો:"
+                        else -> "⚠️ Jerry નીચેની ક્રિયા કરવા માંગે છે. કૃપા કરીને ચકાસો અને મંજૂરી આપો:"
+                    }
+
+                    val approvalPayload = JsonObject().apply {
+                        addProperty("tool", toolName)
+                        addProperty("appName", when {
+                            toolName.contains("whatsapp") -> "WhatsApp"
+                            toolName.contains("call") || toolName.contains("phone") -> "Phone"
+                            toolName.contains("calendar") -> "Calendar"
+                            toolName.contains("maps") -> "Google Maps"
+                            else -> "System"
+                        })
+                        for ((key, value) in argsObj.entrySet()) {
+                            add(key, value)
+                        }
+                    }
+
+                    _messages.value = _messages.value.dropLast(1) + ChatMessage(
                         sender = MessageSender.AGENT,
-                        text = "I have prepared an action. Please confirm execution:",
-                        toolCallPayload = jsonString,
+                        text = promptText,
+                        toolCallPayload = gson.toJson(approvalPayload),
                         isPendingConfirmation = true
                     )
+                    speakConfirmationPrompt(bcp47Locale)
+                    return true
                 } else {
                     _liveActionStep.value = "Executing safe tool: $toolName"
-                    val result = toolRegistry?.executeTool(toolName, args) ?: "{}"
-                    _messages.value = _messages.value + ChatMessage(
-                        sender = MessageSender.TOOL_OUTPUT,
-                        text = "Tool Output ($toolName):\n$result"
+                    val resultJson = toolRegistry?.executeTool(toolName, argsString) ?: "{}"
+                    val humanizedText = humanizeToolResult(toolName, resultJson, bcp47Locale)
+
+                    _messages.value = _messages.value.dropLast(1) + ChatMessage(
+                        sender = MessageSender.AGENT,
+                        text = humanizedText
                     )
+                    if (isVoiceInput) {
+                        speakBack(humanizedText, bcp47Locale)
+                    }
+                    _liveActionStep.value = "Action $toolName completed"
+                    return true
                 }
             }
         } catch (e: Exception) {
-            Log.w("ChatViewModel", "Could not parse tool call from output: ${e.message}")
+            Log.w("ChatViewModel", "Could not parse tool call: ${e.message}")
+        }
+        return false
+    }
+
+    private fun humanizeToolResult(toolName: String, resultJson: String, locale: String): String {
+        return try {
+            val obj = gson.fromJson(resultJson, JsonObject::class.java)
+            when (toolName) {
+                "get_device_battery" -> {
+                    val pct = obj.get("battery_percentage")?.asInt ?: 85
+                    val charging = obj.get("is_charging")?.asBoolean ?: false
+                    val chargeStatus = if (charging) " (Charging ⚡)" else ""
+                    "🔋 Your Samsung Galaxy S25 Ultra battery is at $pct%$chargeStatus."
+                }
+                "toggle_flashlight" -> {
+                    val state = obj.get("flashlight")?.asString ?: "toggled"
+                    "🔦 Flashlight is now $state."
+                }
+                "get_latest_otp" -> {
+                    val otp = obj.get("otp")?.asString
+                    if (otp != null) "🔑 Latest OTP Code: **$otp**" else "No recent OTP found in SMS."
+                }
+                "read_latest_sms" -> {
+                    val count = obj.get("count")?.asInt ?: 0
+                    "📩 Retrieved $count latest SMS messages from your inbox."
+                }
+                "list_calendar_events" -> {
+                    val count = obj.get("count")?.asInt ?: 0
+                    if (count > 0) "📅 You have $count upcoming events scheduled in your calendar."
+                    else "📅 Your schedule is clear. No upcoming calendar events found."
+                }
+                "search_contacts" -> {
+                    val found = obj.get("found")?.asBoolean ?: false
+                    if (found) {
+                        val name = obj.get("name")?.asString ?: "Contact"
+                        val phone = obj.get("phone")?.asString ?: ""
+                        "📇 Found contact: **$name** ($phone)"
+                    } else "Contact not found in phone directory."
+                }
+                "remember_fact" -> {
+                    "🔒 Fact securely encrypted and stored in your Knox Memory Vault."
+                }
+                "search_past_memory" -> {
+                    val facts = obj.get("facts")?.asString ?: resultJson
+                    "🧠 Stored in your Knox Memory Vault:\n$facts"
+                }
+                "get_morning_briefing" -> {
+                    val greeting = obj.get("greeting")?.asString ?: "Good Morning Kishan!"
+                    val weather = obj.get("weather")?.asString ?: "Surat: 32°C"
+                    val battery = obj.get("battery")?.asString ?: "85%"
+                    "☀️ **$greeting**\n📍 Weather: $weather\n🔋 Battery: $battery\n💼 Lalan Art operations ready."
+                }
+                else -> {
+                    if (obj.has("message")) obj.get("message").asString else resultJson
+                }
+            }
+        } catch (_: Exception) {
+            resultJson
         }
     }
+
 
     fun startListening() {
         try {

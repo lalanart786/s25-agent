@@ -81,6 +81,14 @@ fun ChatScreen(viewModel: ChatViewModel) {
             actionStep = liveActionStep
         )
 
+        // Prominent Model Setup Card if GGUF model is not yet loaded
+        if (loadedModelName == null && !viewModel.openRouterClient.hasApiKey()) {
+            ModelSetupPromptCard(
+                onSelectModel = { filePickerLauncher.launch(arrayOf("*/*")) },
+                onRescan = { viewModel.refreshScan() }
+            )
+        }
+
         // Chat Message List
         LazyColumn(
             modifier = Modifier
@@ -1070,4 +1078,75 @@ private fun WaveformBar(height: Float, color: Color) {
             .clip(RoundedCornerShape(2.dp))
             .background(color)
     )
+}
+
+@Composable
+fun ModelSetupPromptCard(
+    onSelectModel: () -> Unit,
+    onRescan: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF1E1B2E),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MuseIndigo.copy(alpha = 0.5f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("🧠", fontSize = 22.sp)
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Activate Jerry's On-Device Brain",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        "Load Hermes-3 or Llama-3.1 GGUF for full offline intelligence",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onSelectModel,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MuseIndigo),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Select .gguf File", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                OutlinedButton(
+                    onClick = onRescan,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Auto-Scan Downloads", fontSize = 12.sp)
+                }
+            }
+        }
+    }
 }

@@ -23,18 +23,23 @@ class S25AgentApplication : Application() {
                 "ggml-base",
                 "ggml",
                 "ggml-cpu",
+                "ggml-opencl",
                 "llama",
                 "s25_agent_native"
             )
+            var nativeLoaded = false
             for (lib in libs) {
                 try {
                     System.loadLibrary(lib)
                     Log.i(TAG, "Native library '$lib' loaded successfully.")
+                    if (lib == "s25_agent_native") {
+                        nativeLoaded = true
+                    }
                 } catch (t: Throwable) {
                     Log.w(TAG, "Could not load library '$lib': ${t.message}")
                 }
             }
-            isNativeLoaded = true
+            isNativeLoaded = nativeLoaded
         }
     }
 

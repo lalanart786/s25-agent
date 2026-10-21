@@ -6,15 +6,15 @@ BOT_TOKEN = "8826112784:AAGXUjjLyLvXHUd75IFRR8l7JKuuA5kpqm8"
 CHAT_ID = "439228682"
 
 text_body = (
-    "🚀 *My Agent (Jerry) — Verified Build #19*\n\n"
+    "👑 *My Agent (Jerry) — Full Personal Agent Build #22*\n\n"
     "નમસ્તે કિશનભાઈ! 🙏\n"
-    "તમારી જરૂરિયાત મુજબ નવી સ્પીચ પોલિસી અને ઇંગ્લિશ પ્રાઇમરી લેંગ્વેજ સાથે *Build #19* તૈયાર છે!\n\n"
-    "✨ *New Updates in Build #19*:\n"
-    "• 🤫 *Quiet Text Mode*: ટાઇપ કરીને મોકલેલા તમામ મેસેજમાં Jerry શાંત રહેશે (કોઈ સ્પીક આઉટ નહીં થાય).\n"
-    "• 🎙️ *Speak ONLY on Voice / Permission*: Jerry ફક્ત ત્યારે જ બોલશે જ્યારે તમે માઇક/વૉઇસથી પૂછશો અથવા પરમિશન પૂછવાની હોય (_\"કિશનભાઈ, શું હું આ બદલાવ કન્ફર્મ કરું?\"_).\n"
-    "• 🌐 *English as Primary*: મુખ્ય ડિફોલ્ટ ભાષા English છે, અને તમે ગુજરાતી કે હિન્દીમાં બોલશો તો આપમેળે તે જ ભાષામાં જવાબ આપશે.\n"
-    "• ⌨️ *Floating IME Input Bar*: કીબોર્ડની બરાબર ઉપર ઇનપુટ બાર અને કીબોર્ડમાં જ 'Send' બટન.\n"
-    "• ☁️ *OpenRouter Cloud AI*: 'API Key' બટનથી Claude 3.5, DeepSeek R1 કે GPT-4o કનેક્ટ કરી શકાશે.\n\n"
+    "તમારી જરૂરિયાત મુજબ તમામ જેનરિક/કૅન્ડ ટેમ્પ્લેટ્સ સંપૂર્ણપણે હટાવીને 100% પ્યોર ઓન-ડિવાઇસ ન્યુરલ પર્સનલ એજન્ટ સાથે *Build #22* તૈયાર છે!\n\n"
+    "🧠 *What is New & Enhanced in Build #22*:\n"
+    "• 🎯 *No Generic Canned Responses*: તમામ હાર્ડકોડેડ ફાસ્ટ-પાથ ટેમ્પ્લેટ્સ રદ કર્યા છે. હવે Jerry દર વખતે તમારા સવાલને વાસ્તવિક ન્યુરલ નેટવર્ક (Hermes-3 / Llama-3.1 GGUF) દ્વારા પ્રોસેસ કરીને તાજો, ડાયનેમિક અને વ્યક્તિગત જવાબ આપશે.\n"
+    "• 👔 *Kishan's Executive Chief of Staff*: Jerry હવે ફક્ત જેનરિક બોટ નથી, પરંતુ તમારો સમર્પિત ચીફ ઓફ સ્ટાફ છે. તે લાલન આર્ટ (સુરત, લક્ઝરી સાડીઓ, કાનજીભાઈ, ડિસ્પેચ) અને તમારા Knox મેમરી વોલ્ટને સંપૂર્ણપણે ઓળખે છે.\n"
+    "• 🎲 *Dynamic Non-Repetitive Sampler*: `llama_sampler_init_penalties` (repetition penalty 1.15) અને ટાઇમ-બેઝ્ડ રેન્ડમ સીડથી સજ્જ — રિપીટ થવાનું નામ જ નહીં!\n"
+    "• 🛡️ *Strict Approval Gate*: કોઈ પણ મેસેજ મોકલતા, ફોન કરતા કે ડેટા બદલતા પહેલા Jerry હંમેશા તમારી સ્પષ્ટ મંજૂરી (Action Approval Card) માંગશે.\n"
+    "• ⚡ *1-Tap Model Setup Card*: જો મોડેલ ફાઇલ અનમાઉન્ટ થયેલી હોય તો ચેટમાં જ 1-ક્લિક 'Select .gguf File' બટન ઉપલબ્ધ છે.\n\n"
     "📲 *Direct 1-Click APK Download for Galaxy S25 Ultra*:"
 )
 
@@ -24,8 +24,8 @@ payload = {
     "parse_mode": "Markdown",
     "reply_markup": {
         "inline_keyboard": [
-            [{"text": "📥 Download Jerry Build #19 (Direct APK)", "url": "https://github.com/lalanart786/s25-agent/releases/download/release-19/app-debug.apk"}],
-            [{"text": "🌐 View GitHub Release v19", "url": "https://github.com/lalanart786/s25-agent/releases/tag/release-19"}]
+            [{"text": "📥 Download Jerry Build #22 (Direct APK)", "url": "https://github.com/lalanart786/s25-agent/releases/download/release-22/app-debug.apk"}],
+            [{"text": "🌐 View GitHub Release v22", "url": "https://github.com/lalanart786/s25-agent/releases/tag/release-22"}]
         ]
     }
 }

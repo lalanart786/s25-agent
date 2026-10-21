@@ -3,6 +3,7 @@
 #include <vector>
 #include <atomic>
 #include <sstream>
+#include <ctime>
 #include <android/log.h>
 #include "include/llama.h"
 #include "audio_router.h"
@@ -59,6 +60,11 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeInitModel(
     mparams.n_gpu_layers = nGpuLayers;
 
     g_model = llama_model_load_from_file(path, mparams);
+    if (g_model == nullptr && nGpuLayers > 0) {
+        LOGI("GPU/NPU load failed, falling back to Snapdragon 8 Elite CPU cores...");
+        mparams.n_gpu_layers = 0;
+        g_model = llama_model_load_from_file(path, mparams);
+    }
     if (g_model == nullptr) {
         LOGE("Failed to load GGUF model from file: %s", path);
         env->ReleaseStringUTFChars(modelPath, path);
@@ -66,9 +72,11 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeInitModel(
     }
 
     struct llama_context_params cparams = llama_context_default_params();
-    cparams.n_ctx = contextSize > 0 ? contextSize : 2048;
+    cparams.n_ctx = contextSize > 0 ? contextSize : 4096;
     cparams.n_threads = nThreads > 0 ? nThreads : 6;
     cparams.n_threads_batch = nThreads > 0 ? nThreads : 6;
+    cparams.n_batch = 2048;
+    cparams.n_ubatch = 512;
 
     g_context = llama_init_from_model(g_model, cparams);
     if (g_context == nullptr) {
@@ -78,14 +86,6 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeInitModel(
         env->ReleaseStringUTFChars(modelPath, path);
         return JNI_FALSE;
     }
-
-    // Initialize modern sampler chain (temperature 0.7 + top_p 0.95 + top_k 40)
-    struct llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
-    g_sampler = llama_sampler_chain_init(sparams);
-    llama_sampler_chain_add(g_sampler, llama_sampler_init_top_k(40));
-    llama_sampler_chain_add(g_sampler, llama_sampler_init_top_p(0.95f, 1));
-    llama_sampler_chain_add(g_sampler, llama_sampler_init_temp(0.7f));
-    llama_sampler_chain_add(g_sampler, llama_sampler_init_dist(1234));
 
     g_active_threads.store(nThreads);
     g_loaded_path = std::string(path);
@@ -125,7 +125,7 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeGenerateStream(
     int prompt_len = strlen(promptText);
 
     // 1. Tokenize prompt
-    std::vector<llama_token> tokens_list(prompt_len + 32);
+    std::vector<llama_token> tokens_list(prompt_len + 64);
     int n_tokens = llama_tokenize(vocab, promptText, prompt_len, tokens_list.data(), tokens_list.size(), true, true);
     if (n_tokens < 0) {
         tokens_list.resize(-n_tokens);
@@ -141,7 +141,25 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeGenerateStream(
         llama_memory_clear(mem, true);
     }
 
-    // 3. Batch decode initial prompt
+    // 3. Configure fresh dynamic sampler chain with repetition penalty & dynamic seed
+    if (g_sampler != nullptr) {
+        llama_sampler_free(g_sampler);
+        g_sampler = nullptr;
+    }
+    struct llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
+    g_sampler = llama_sampler_chain_init(sparams);
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_penalties(llama_vocab_n_tokens(vocab), 64, 1.15f, 0.1f, 0.1f));
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_top_k(40));
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_top_p(0.90f, 1));
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_temp(0.7f));
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_dist(static_cast<uint32_t>(time(nullptr))));
+
+    // Feed prompt tokens into sampler history to prevent prompt repetition
+    for (llama_token t : tokens_list) {
+        llama_sampler_accept(g_sampler, t);
+    }
+
+    // 4. Batch decode initial prompt
     struct llama_batch batch = llama_batch_get_one(tokens_list.data(), tokens_list.size());
     if (llama_decode(g_context, batch) != 0) {
         LOGE("llama_decode failed on initial prompt!");
@@ -154,12 +172,13 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeGenerateStream(
         return;
     }
 
-    // 4. Autoregressive token generation loop
-    const int max_tokens_to_gen = 512;
+    // 5. Autoregressive token generation loop
+    const int max_tokens_to_gen = 768;
     int n_gen = 0;
 
     while (n_gen < max_tokens_to_gen && g_is_generating.load()) {
         llama_token new_token_id = llama_sampler_sample(g_sampler, g_context, -1);
+        llama_sampler_accept(g_sampler, new_token_id);
 
         // Check for EOS
         if (llama_vocab_is_eog(vocab, new_token_id)) {
@@ -172,6 +191,13 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeGenerateStream(
         int n_chars = llama_token_to_piece(vocab, new_token_id, buf, sizeof(buf), 0, false);
         if (n_chars > 0) {
             std::string piece(buf, n_chars);
+            // Stop tokens check (ChatML / Llama 3)
+            if (piece.find("<|im_end|>") != std::string::npos ||
+                piece.find("<|eot_id|>") != std::string::npos ||
+                piece.find("<|end_of_text|>") != std::string::npos) {
+                break;
+            }
+
             jstring tokenStr = env->NewStringUTF(piece.c_str());
             env->CallVoidMethod(tokenCallback, onTokenMethod, tokenStr);
             env->DeleteLocalRef(tokenStr);
