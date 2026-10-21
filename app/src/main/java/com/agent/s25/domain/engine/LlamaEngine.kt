@@ -123,7 +123,6 @@ Or tap **"📂 Select"** at the top to pick your `.gguf` file directly!
                     val success = LlamaBridge.nativeInitModelFromFd(pfd.fd, 0, 6, 2048)
                     if (success) {
                         _loadedModelName.value = fileName
-                        _isLoaded.value = true
                         activeModelPath = "fd:${pfd.fd}"
                         Log.i(TAG, "Zero-copy SAF loading succeeded for: $fileName")
                         return true
