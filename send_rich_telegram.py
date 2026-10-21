@@ -6,15 +6,14 @@ BOT_TOKEN = "8826112784:AAGXUjjLyLvXHUd75IFRR8l7JKuuA5kpqm8"
 CHAT_ID = "439228682"
 
 text_body = (
-    "👑 *My Agent (Jerry) — Full Personal Agent Build #22*\n\n"
+    "🛠️ *My Agent (Jerry) — Installation Verified Build #24*\n\n"
     "નમસ્તે કિશનભાઈ! 🙏\n"
-    "તમારી જરૂરિયાત મુજબ તમામ જેનરિક/કૅન્ડ ટેમ્પ્લેટ્સ સંપૂર્ણપણે હટાવીને 100% પ્યોર ઓન-ડિવાઇસ ન્યુરલ પર્સનલ એજન્ટ સાથે *Build #22* તૈયાર છે!\n\n"
-    "🧠 *What is New & Enhanced in Build #22*:\n"
-    "• 🎯 *No Generic Canned Responses*: તમામ હાર્ડકોડેડ ફાસ્ટ-પાથ ટેમ્પ્લેટ્સ રદ કર્યા છે. હવે Jerry દર વખતે તમારા સવાલને વાસ્તવિક ન્યુરલ નેટવર્ક (Hermes-3 / Llama-3.1 GGUF) દ્વારા પ્રોસેસ કરીને તાજો, ડાયનેમિક અને વ્યક્તિગત જવાબ આપશે.\n"
-    "• 👔 *Kishan's Executive Chief of Staff*: Jerry હવે ફક્ત જેનરિક બોટ નથી, પરંતુ તમારો સમર્પિત ચીફ ઓફ સ્ટાફ છે. તે લાલન આર્ટ (સુરત, લક્ઝરી સાડીઓ, કાનજીભાઈ, ડિસ્પેચ) અને તમારા Knox મેમરી વોલ્ટને સંપૂર્ણપણે ઓળખે છે.\n"
-    "• 🎲 *Dynamic Non-Repetitive Sampler*: `llama_sampler_init_penalties` (repetition penalty 1.15) અને ટાઇમ-બેઝ્ડ રેન્ડમ સીડથી સજ્જ — રિપીટ થવાનું નામ જ નહીં!\n"
-    "• 🛡️ *Strict Approval Gate*: કોઈ પણ મેસેજ મોકલતા, ફોન કરતા કે ડેટા બદલતા પહેલા Jerry હંમેશા તમારી સ્પષ્ટ મંજૂરી (Action Approval Card) માંગશે.\n"
-    "• ⚡ *1-Tap Model Setup Card*: જો મોડેલ ફાઇલ અનમાઉન્ટ થયેલી હોય તો ચેટમાં જ 1-ક્લિક 'Select .gguf File' બટન ઉપલબ્ધ છે.\n\n"
+    "ફોનમાં 'App not installed' ની સમસ્યાનું મૂળ કારણ શોધીને સંપૂર્ણ ફિક્સ સાથે *Build #24* તૈયાર છે!\n\n"
+    "🔧 *Why It Failed & What Is Fixed in Build #24*:\n"
+    "1. 🚫 *Removed System Privilege Attributes*: મેનિફેસ્ટમાંથી `showForAllUsers` (જે ફક્ત સેમસંગ સિસ્ટમ એપ્સ માટે માન્ય છે) અને અનસપોર્ટેડ `specialUse` ફ્લેગ દૂર કર્યા છે, જેથી One UI 7 / Android 15 નું પેકેજ ઇન્સ્ટોલર બ્લોક ન કરે.\n"
+    "2. 🔑 *Permanent Cryptographic Keystore*: કાયમી સત્તાવાર કીસ્ટોર (`s25-agent.keystore`) થી APK સાઇન કર્યું છે, જેથી દર વખતે સર્ટિફિકેટ બદલાશે નહીં.\n"
+    "3. 📈 *Version Code Bumped (v24)*: વર્ઝન કોડ ૨૪ કર્યો છે.\n\n"
+    "💡 *ઇન્સ્ટોલેશન ટિપ*: જો તમારા ફોનમાં અગાઉનું જૂનું બિલ્ડ ઇન્સ્ટોલ હોય, તો તેને *એકવાર Uninstall (Delete)* કરીને આ નવું Build #24 ઇન્સ્ટોલ કરો. ત્યારબાદ ભવિષ્યના તમામ અપડેટ્સ સીધા ૧-ક્લિકમાં અપડેટ થઈ જશે!\n\n"
     "📲 *Direct 1-Click APK Download for Galaxy S25 Ultra*:"
 )
 
@@ -24,8 +23,8 @@ payload = {
     "parse_mode": "Markdown",
     "reply_markup": {
         "inline_keyboard": [
-            [{"text": "📥 Download Jerry Build #22 (Direct APK)", "url": "https://github.com/lalanart786/s25-agent/releases/download/release-22/app-debug.apk"}],
-            [{"text": "🌐 View GitHub Release v22", "url": "https://github.com/lalanart786/s25-agent/releases/tag/release-22"}]
+            [{"text": "📥 Download Jerry Build #24 (Direct APK)", "url": "https://github.com/lalanart786/s25-agent/releases/download/release-24/app-debug.apk"}],
+            [{"text": "🌐 View GitHub Release v24", "url": "https://github.com/lalanart786/s25-agent/releases/tag/release-24"}]
         ]
     }
 }

@@ -22,7 +22,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Floating Overlay & Assistant & Lock Screen -->
@@ -77,7 +76,6 @@
             android:exported="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
-            android:showForAllUsers="true"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.S25Agent">
             <intent-filter>
@@ -107,7 +105,7 @@
         <!-- Persistent Background & Geofence Service -->
         <service
             android:name=".service.AgentForegroundService"
-            android:foregroundServiceType="location|microphone|specialUse"
+            android:foregroundServiceType="location|microphone"
             android:exported="false" />
 
         <!-- Floating Chat Bubble Overlay Service -->
