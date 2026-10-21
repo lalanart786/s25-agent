@@ -20,6 +20,7 @@ import com.agent.s25.domain.tools.SafetyGate
 import com.agent.s25.domain.tools.ToolRegistry
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
