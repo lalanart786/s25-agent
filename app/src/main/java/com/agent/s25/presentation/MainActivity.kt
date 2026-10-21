@@ -276,6 +276,14 @@ class MainActivity : ComponentActivity() {
                     return
                 }
             }
+            // Check Location permission before starting Location Foreground Service on Android 14/15
+            val hasLocation = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                              ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            if (!hasLocation) {
+                Log.w("MainActivity", "Location permission not granted yet, deferring location foreground service.")
+                return
+            }
+
             val intent = Intent(this, AgentForegroundService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)

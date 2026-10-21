@@ -63,7 +63,18 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
 
     init {
         tts = TextToSpeech(application, this)
-        val initialModel = llamaEngine.autoScanAndLoad(application)
+        val initialModel: String? = null
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val autoModel = llamaEngine.autoScanAndLoad(application)
+            if (autoModel != null) {
+                _liveActionStep.value = "Model Active: $autoModel"
+                _messages.value = _messages.value + ChatMessage(
+                    sender = MessageSender.SYSTEM,
+                    text = "Model auto-detected and loaded: $autoModel"
+                )
+            }
+        }
 
         val voiceStatus = if (voiceProfileManager.isTrainingComplete) "🔒 Voiceprint Locked to Kishan" else "🎙️ Adaptive Voice Training: ${voiceProfileManager.interactionsCount}/5"
 

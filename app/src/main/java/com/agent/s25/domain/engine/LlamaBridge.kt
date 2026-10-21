@@ -13,6 +13,13 @@ object LlamaBridge {
         contextSize: Int
     ): Boolean
 
+    external fun nativeInitModelFromFd(
+        fd: Int,
+        nGpuLayers: Int,
+        nThreads: Int,
+        contextSize: Int
+    ): Boolean
+
     external fun nativeGenerateStream(
         prompt: String,
         grammarUtf8: String?,

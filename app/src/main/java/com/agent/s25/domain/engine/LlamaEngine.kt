@@ -3,6 +3,7 @@ package com.agent.s25.domain.engine
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import android.os.ParcelFileDescriptor
 import android.util.Log
 import com.agent.s25.S25AgentApplication
 import kotlinx.coroutines.*
@@ -33,6 +34,7 @@ Or tap **"📂 Select"** at the top to pick your `.gguf` file directly!
     }
 
     private var activeModelPath: String? = null
+    private var activePfd: ParcelFileDescriptor? = null
     private var idleJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default)
 
@@ -103,28 +105,37 @@ Or tap **"📂 Select"** at the top to pick your `.gguf` file directly!
             for (candidate in searchDirs) {
                 if (candidate.exists() && candidate.canRead() && candidate.length() > 1024 * 1024) {
                     Log.i(TAG, "Zero-copy storage hit: ${candidate.absolutePath}")
-                    return loadModel(candidate.absolutePath)
-                }
-            }
-
-            // 2. Direct descriptor hit via /proc/self/fd/
-            try {
-                val pfd = contentResolver.openFileDescriptor(uri, "r")
-                if (pfd != null) {
-                    val fdPath = "/proc/self/fd/${pfd.fd}"
-                    Log.i(TAG, "Attempting direct proc fd mmap: $fdPath")
-                    val success = loadModel(fdPath)
+                    val success = loadModel(candidate.absolutePath)
                     if (success) {
                         _loadedModelName.value = fileName
                         return true
                     }
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "proc fd mmap attempt failed: ${e.message}")
             }
 
-            // 3. Fallback: Copy to app sandbox only if direct access failed
-            val targetDir = File(context.filesDir, "models").apply { mkdirs() }
+            // 2. Direct zero-copy via ParcelFileDescriptor + fdopen (Instant, zero disk copying, works with Android 15 SAF!)
+            try {
+                activePfd?.close()
+                val pfd = contentResolver.openFileDescriptor(uri, "r")
+                if (pfd != null) {
+                    activePfd = pfd
+                    Log.i(TAG, "Attempting zero-copy nativeInitModelFromFd: ${pfd.fd}")
+                    val success = LlamaBridge.nativeInitModelFromFd(pfd.fd, 0, 6, 2048)
+                    if (success) {
+                        _loadedModelName.value = fileName
+                        _isLoaded.value = true
+                        activeModelPath = "fd:${pfd.fd}"
+                        Log.i(TAG, "Zero-copy SAF loading succeeded for: $fileName")
+                        return true
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "nativeInitModelFromFd attempt failed: ${e.message}")
+            }
+
+            // 3. Fallback: Copy to external filesDir where there is ample storage
+            val targetDir = context.getExternalFilesDir("models") ?: File(context.filesDir, "models")
+            targetDir.mkdirs()
             val destFile = File(targetDir, fileName)
 
             if (!destFile.exists() || destFile.length() < 1024 * 1024) {
@@ -142,7 +153,7 @@ Or tap **"📂 Select"** at the top to pick your `.gguf` file directly!
             }
             return success
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load model from URI: ${e.message}")
+            Log.e(TAG, "Failed to load model from URI: ${e.message}", e)
             return false
         }
     }
@@ -238,6 +249,8 @@ Or tap **"📂 Select"** at the top to pick your `.gguf` file directly!
             Log.i(TAG, "Idle timeout reached. Unloading model weights to free RAM.")
             try {
                 LlamaBridge.nativeUnloadModel()
+                activePfd?.close()
+                activePfd = null
             } catch (_: UnsatisfiedLinkError) {}
             activeModelPath = null
         }
