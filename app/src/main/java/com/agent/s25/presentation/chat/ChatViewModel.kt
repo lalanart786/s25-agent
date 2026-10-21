@@ -13,6 +13,7 @@ import com.agent.s25.data.model.ChatMessage
 import com.agent.s25.data.model.MessageSender
 import com.agent.s25.domain.engine.LlamaEngine
 import com.agent.s25.domain.indic.LanguageDetector
+import com.agent.s25.domain.indic.DetectedLanguage
 import com.agent.s25.domain.memory.MemoryManager
 import com.agent.s25.domain.tools.ExecutionTier
 import com.agent.s25.domain.tools.SafetyGate
@@ -180,7 +181,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
         }
     }
 
-    private fun buildHermesChatMLPrompt(userText: String, detectedLang: DetectedLanguage): String {
+    private suspend fun buildHermesChatMLPrompt(userText: String, detectedLang: DetectedLanguage): String {
         return buildString {
             append("<|im_start|>system\n")
             append("You are Jerry, an elite, loyal, on-device personal AI executive agent for Kishan Miyani (@Kmiyani), Founder of Lalan Art, Surat.\n")

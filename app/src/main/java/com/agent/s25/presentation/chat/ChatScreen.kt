@@ -1091,7 +1091,7 @@ fun ModelSetupPromptCard(
             .padding(horizontal = 14.dp, vertical = 6.dp),
         shape = RoundedCornerShape(16.dp),
         color = Color(0xFF1E1B2E),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MuseIndigo.copy(alpha = 0.5f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, ElectricIndigo.copy(alpha = 0.5f))
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -1125,7 +1125,7 @@ fun ModelSetupPromptCard(
                 Button(
                     onClick = onSelectModel,
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MuseIndigo),
+                    colors = ButtonDefaults.buttonColors(containerColor = ElectricIndigo),
                     shape = RoundedCornerShape(10.dp),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
