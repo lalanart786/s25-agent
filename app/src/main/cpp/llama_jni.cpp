@@ -59,8 +59,7 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeInitModel(
     struct llama_model_params mparams = llama_model_default_params();
     // Run directly on Snapdragon 8 Elite's Oryon CPU cores (ARMv9.2 DotProd + NEON)
     mparams.n_gpu_layers = 0;
-    mparams.use_mmap = true;
-    mparams.use_mlock = false;
+    mparams.load_mode = LLAMA_LOAD_MODE_MMAP;
 
     g_model = llama_model_load_from_file(path, mparams);
     if (g_model == nullptr) {
