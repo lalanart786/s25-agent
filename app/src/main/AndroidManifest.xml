@@ -129,7 +129,7 @@
         <!-- Silent Geofence Receiver -->
         <receiver
             android:name=".service.GeofenceBroadcastReceiver"
-            android:exported="true" />
+            android:exported="false" />
 
     </application>
 
