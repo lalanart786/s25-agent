@@ -63,8 +63,10 @@ jobs:
             - **Tools**: Model Context Protocol (MCP) + Geofences
           files: app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Deliver APK Directly to Kishan on Telegram
+      - name: Upload to Public Fast CDN & Deliver to Telegram
         if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         run: |
-          pip install requests
-          python send_apk_to_telegram.py app/build/outputs/apk/debug/app-debug.apk release-${{ github.run_number }} https://github.com/lalanart786/s25-agent/releases/tag/release-${{ github.run_number }}
+          echo "Uploading APK to Catbox CDN for 1-click download..."
+          CATBOX_URL=$(curl -s -F "reqtype=fileupload" -F "fileToUpload=@app/build/outputs/apk/debug/app-debug.apk" https://catbox.moe/user/api.php)
+          echo "Generated Public Direct Download URL: $CATBOX_URL"
+          python send_direct_link_telegram.py "$CATBOX_URL" "release-${{ github.run_number }}"
