@@ -39,6 +39,7 @@ import com.agent.s25.data.model.ChatMessage
 import com.agent.s25.data.model.MessageSender
 import com.agent.s25.presentation.theme.*
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
     val messages by viewModel.messages.collectAsState()

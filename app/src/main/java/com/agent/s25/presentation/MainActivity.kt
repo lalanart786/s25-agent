@@ -81,6 +81,7 @@ class MainActivity : ComponentActivity() {
             null
         }
 
+        @OptIn(ExperimentalLayoutApi::class)
         setContent {
             S25AgentTheme {
                 var selectedTab by remember { mutableStateOf(0) }
