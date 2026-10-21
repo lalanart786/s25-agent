@@ -3,8 +3,8 @@ import sys
 import json
 import urllib.request
 
-BOT_TOKEN = "8826112784:AAGXUjjLyLvXHUd75IFRR8l7JKuuA5kpqm8"
-CHAT_ID = "439228682"
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8826112784:AAGXUjjLyLvXHUd75IFRR8l7JKuuA5kpqm8")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "439228682")
 
 direct_url = sys.argv[1] if len(sys.argv) > 1 else ""
 release_tag = sys.argv[2] if len(sys.argv) > 2 else "release"
