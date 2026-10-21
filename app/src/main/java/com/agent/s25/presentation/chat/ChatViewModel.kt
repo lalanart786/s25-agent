@@ -289,7 +289,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
                         toolCallPayload = gson.toJson(approvalPayload),
                         isPendingConfirmation = true
                     )
-                    speakConfirmationPrompt(bcp47Locale)
+                    if (isVoiceInput) {
+                        speakConfirmationPrompt(bcp47Locale)
+                    }
                     return true
                 } else {
                     _liveActionStep.value = "Executing safe tool: $toolName"
@@ -460,8 +462,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
             toolCallPayload = gson.toJson(payload)
         )
         _messages.value = _messages.value + approvalMsg
-        speakConfirmationPrompt("gu-IN")
-        _liveActionStep.value = "Awaiting Kishan's approval for WhatsApp Dispatch"
+                _liveActionStep.value = "Awaiting Kishan's approval for WhatsApp Dispatch"
     }
 
     private fun speakConfirmationPrompt(bcp47Locale: String) {

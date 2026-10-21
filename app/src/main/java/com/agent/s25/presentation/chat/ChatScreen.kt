@@ -56,13 +56,15 @@ fun ChatScreen(viewModel: ChatViewModel) {
         uri?.let { viewModel.selectModelUri(it) }
     }
 
+    val isKeyboardOpen = WindowInsets.isImeVisible
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .imePadding()
             .background(AmoledBackground)
     ) {
-        // Meta Muse Header with Avatar & Model Switcher
+        // Meta Muse Header with Avatar & Model Switcher (Compact)
         MetaMuseHeader(
             loadedModelName = loadedModelName,
             isGenerating = isGenerating,
@@ -73,16 +75,19 @@ fun ChatScreen(viewModel: ChatViewModel) {
             onOpenCloudSettings = { showApiKeyDialog = true }
         )
 
-        // Live 3-Layer Telemetry Status Banner
-        LiveThreeLayerStatusBanner(
-            isGenerating = isGenerating,
-            isListening = isListening,
-            hasModel = loadedModelName != null,
-            actionStep = liveActionStep
-        )
+        // Live 3-Layer Telemetry Status Banner (Only visible when busy or active and keyboard closed)
+        val isBusyOrAction = isGenerating || isListening || (liveActionStep.isNotBlank() && !liveActionStep.contains("Idle"))
+        if (isBusyOrAction && !isKeyboardOpen) {
+            LiveThreeLayerStatusBanner(
+                isGenerating = isGenerating,
+                isListening = isListening,
+                hasModel = loadedModelName != null,
+                actionStep = liveActionStep
+            )
+        }
 
         // Prominent Model Setup Card if GGUF model is not yet loaded
-        if (loadedModelName == null && !viewModel.openRouterClient.hasApiKey()) {
+        if (loadedModelName == null && !viewModel.openRouterClient.hasApiKey() && !isKeyboardOpen) {
             ModelSetupPromptCard(
                 onSelectModel = { filePickerLauncher.launch(arrayOf("*/*")) },
                 onRescan = { viewModel.refreshScan() }
@@ -95,7 +100,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp),
-            contentPadding = PaddingValues(top = 10.dp, bottom = 10.dp)
+            contentPadding = PaddingValues(top = 6.dp, bottom = 6.dp)
         ) {
             items(messages, key = { it.id }) { msg ->
                 ChatBubble(
@@ -111,15 +116,17 @@ fun ChatScreen(viewModel: ChatViewModel) {
             }
         }
 
-        // Indic Suggestion Chips for quick taps
-        IndicQuickSuggestionsBar(
-            onSelectPrompt = { prompt ->
-                viewModel.sendMessage(prompt)
-            },
-            onTriggerApprovalTest = {
-                viewModel.triggerSampleApprovalCard()
-            }
-        )
+        // Indic Suggestion Chips for quick taps (hidden when keyboard is open to maximize visibility)
+        if (!isKeyboardOpen) {
+            IndicQuickSuggestionsBar(
+                onSelectPrompt = { prompt ->
+                    viewModel.sendMessage(prompt)
+                },
+                onTriggerApprovalTest = {
+                    viewModel.triggerSampleApprovalCard()
+                }
+            )
+        }
 
         // Floating Meta Muse Input Bar with Waveform Mic
         FloatingInputBar(
@@ -219,7 +226,7 @@ private fun MetaMuseHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -230,23 +237,23 @@ private fun MetaMuseHeader(
                     isBusy = isGenerating || isListening
                 )
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Jerry",
                             color = TextPrimary,
-                            fontSize = 17.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(RoundedCornerShape(4.dp))
                                 .background(ElectricIndigo.copy(alpha = 0.25f))
-                                .border(1.dp, ElectricIndigo.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .border(1.dp, ElectricIndigo.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 text = "MY AGENT",
@@ -262,41 +269,41 @@ private fun MetaMuseHeader(
                         text = when {
                             hasCloudKey -> "OpenRouter Cloud AI Active"
                             loadedModelName != null -> loadedModelName
-                            else -> "No Model • Tap Select / Cloud"
+                            else -> "No Model • Tap Select"
                         },
                         color = if (hasCloudKey) EmeraldSafeGreen else if (loadedModelName != null) TextSecondary else AmberIndicGold,
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         maxLines = 1
                     )
                 }
             }
 
-            // Right: Model Switch Pill, Cloud API Key, & Rescan
+            // Right: Compact Action Buttons
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // Cloud Key Button
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(if (hasCloudKey) EmeraldSafeGreen.copy(alpha = 0.2f) else AmoledSurfaceVariant)
-                        .border(1.dp, if (hasCloudKey) EmeraldSafeGreen.copy(alpha = 0.5f) else AmoledGlassBorder, RoundedCornerShape(16.dp))
+                        .border(1.dp, if (hasCloudKey) EmeraldSafeGreen.copy(alpha = 0.5f) else AmoledGlassBorder, RoundedCornerShape(12.dp))
                         .clickable(onClick = onOpenCloudSettings)
-                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                        .padding(horizontal = 7.dp, vertical = 4.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Default.Cloud,
                             contentDescription = "Cloud AI",
                             tint = if (hasCloudKey) EmeraldSafeGreen else TextSecondary,
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = if (hasCloudKey) "Cloud ON" else "API Key",
+                            text = if (hasCloudKey) "Cloud" else "API",
                             color = if (hasCloudKey) EmeraldSafeGreen else TextSecondary,
-                            fontSize = 10.sp,
+                            fontSize = 9.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -304,24 +311,24 @@ private fun MetaMuseHeader(
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(AmoledSurfaceVariant)
-                        .border(1.dp, AmoledGlassBorder, RoundedCornerShape(16.dp))
+                        .border(1.dp, AmoledGlassBorder, RoundedCornerShape(12.dp))
                         .clickable(onClick = onSelectModel)
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Default.FolderOpen,
                             contentDescription = null,
                             tint = SoftCyan,
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(12.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = if (loadedModelName == null) "Select" else "Switch",
                             color = SoftCyan,
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -329,13 +336,13 @@ private fun MetaMuseHeader(
 
                 IconButton(
                     onClick = onRescan,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
                         Icons.Default.Refresh,
                         contentDescription = "Rescan",
                         tint = TextSecondary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
@@ -369,13 +376,13 @@ private fun JerryQuantumOrbAvatar(isActive: Boolean, isBusy: Boolean) {
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(40.dp)
+        modifier = Modifier.size(28.dp)
     ) {
         // Outer pulsing cybernetic field
         if (isActive) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(28.dp)
                     .scale(pulseScale)
                     .clip(CircleShape)
                     .background(
@@ -387,7 +394,7 @@ private fun JerryQuantumOrbAvatar(isActive: Boolean, isBusy: Boolean) {
         // Concentric Quantum Orbital Sphere
         Box(
             modifier = Modifier
-                .size(34.dp)
+                .size(24.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
@@ -398,13 +405,13 @@ private fun JerryQuantumOrbAvatar(isActive: Boolean, isBusy: Boolean) {
                         )
                     )
                 )
-                .border(1.5.dp, if (isBusy) SoftCyan else ElectricIndigo.copy(alpha = 0.8f), CircleShape),
+                .border(1.dp, if (isBusy) SoftCyan else ElectricIndigo.copy(alpha = 0.8f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             // Luminous 3D Holographic Core
             Box(
                 modifier = Modifier
-                    .size(16.dp)
+                    .size(10.dp)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(

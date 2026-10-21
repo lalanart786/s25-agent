@@ -17,17 +17,26 @@ class S25AgentApplication : Application() {
         var isNativeLoaded = false
             private set
 
+        @Volatile
+        var nativeLoadError: String? = null
+            private set
+
         init {
             val libs = listOf(
                 "c++_shared",
+                "OpenCL",
                 "ggml-base",
-                "ggml",
                 "ggml-cpu",
                 "ggml-opencl",
+                "ggml-hexagon",
+                "ggml-rpc",
+                "ggml",
                 "llama",
                 "s25_agent_native"
             )
             var nativeLoaded = false
+            var firstError: String? = null
+
             for (lib in libs) {
                 try {
                     System.loadLibrary(lib)
@@ -36,17 +45,22 @@ class S25AgentApplication : Application() {
                         nativeLoaded = true
                     }
                 } catch (t: Throwable) {
-                    Log.w(TAG, "Could not load library '$lib': ${t.message}")
+                    val err = "Failed to load '$lib': ${t.message}"
+                    Log.w(TAG, err, t)
+                    if (firstError == null && (lib == "llama" || lib == "s25_agent_native" || lib == "ggml")) {
+                        firstError = err
+                    }
                 }
             }
             isNativeLoaded = nativeLoaded
+            nativeLoadError = firstError
         }
     }
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
-        Log.i(TAG, "S25 Agent Application initialized.")
+        Log.i(TAG, "S25 Agent Application initialized. Native engine ready: $isNativeLoaded")
     }
 
     private fun createNotificationChannels() {

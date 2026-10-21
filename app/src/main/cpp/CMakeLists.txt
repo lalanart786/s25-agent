@@ -19,6 +19,15 @@ link_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}
 )
 
+# OpenCL loader/stub to fulfill DT_NEEDED for libggml-opencl.so on Android
+add_library(OpenCL SHARED
+    opencl_loader.c
+)
+target_link_libraries(OpenCL
+    ${LOG_LIB}
+    ${ANDROID_LIB}
+)
+
 # Unified native library
 add_library(s25_agent_native SHARED
     llama_jni.cpp
@@ -31,6 +40,7 @@ target_link_libraries(s25_agent_native
     ${LOG_LIB}
     ${ANDROID_LIB}
     ${AAUDIO_LIB}
+    OpenCL
     llama
     ggml
     ggml-base

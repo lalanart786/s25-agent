@@ -84,129 +84,132 @@ class MainActivity : ComponentActivity() {
         setContent {
             S25AgentTheme {
                 var selectedTab by remember { mutableStateOf(0) }
+                val isKeyboardOpen = WindowInsets.isImeVisible
 
                 Scaffold(
                     bottomBar = {
-                        Column {
-                            // Hair-thin frosted glass divider
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(1.dp)
-                                    .background(AmoledGlassBorder)
-                            )
-                            NavigationBar(
-                                containerColor = AmoledSurface,
-                                contentColor = TextPrimary,
-                                tonalElevation = 0.dp
-                            ) {
-                                // Tab 0: Chat
-                                NavigationBarItem(
-                                    selected = selectedTab == 0,
-                                    onClick = { selectedTab = 0 },
-                                    icon = {
-                                        Icon(
-                                            Icons.Default.Chat,
-                                            contentDescription = "Chat",
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            "Chat",
-                                            fontSize = 11.sp,
-                                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = SoftCyan,
-                                        selectedTextColor = SoftCyan,
-                                        unselectedIconColor = TextMuted,
-                                        unselectedTextColor = TextMuted,
-                                        indicatorColor = ElectricIndigo.copy(alpha = 0.25f)
-                                    )
+                        if (!isKeyboardOpen) {
+                            Column {
+                                // Hair-thin frosted glass divider
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(AmoledGlassBorder)
                                 )
+                                NavigationBar(
+                                    containerColor = AmoledSurface,
+                                    contentColor = TextPrimary,
+                                    tonalElevation = 0.dp
+                                ) {
+                                    // Tab 0: Chat
+                                    NavigationBarItem(
+                                        selected = selectedTab == 0,
+                                        onClick = { selectedTab = 0 },
+                                        icon = {
+                                            Icon(
+                                                Icons.Default.Chat,
+                                                contentDescription = "Chat",
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                "Chat",
+                                                fontSize = 11.sp,
+                                                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = SoftCyan,
+                                            selectedTextColor = SoftCyan,
+                                            unselectedIconColor = TextMuted,
+                                            unselectedTextColor = TextMuted,
+                                            indicatorColor = ElectricIndigo.copy(alpha = 0.25f)
+                                        )
+                                    )
 
-                                // Tab 1: Goals
-                                NavigationBarItem(
-                                    selected = selectedTab == 1,
-                                    onClick = { selectedTab = 1 },
-                                    icon = {
-                                        Icon(
-                                            Icons.Default.TrackChanges,
-                                            contentDescription = "Goals",
-                                            modifier = Modifier.size(22.dp)
+                                    // Tab 1: Goals
+                                    NavigationBarItem(
+                                        selected = selectedTab == 1,
+                                        onClick = { selectedTab = 1 },
+                                        icon = {
+                                            Icon(
+                                                Icons.Default.TrackChanges,
+                                                contentDescription = "Goals",
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                "Goals",
+                                                fontSize = 11.sp,
+                                                fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = AmberIndicGold,
+                                            selectedTextColor = AmberIndicGold,
+                                            unselectedIconColor = TextMuted,
+                                            unselectedTextColor = TextMuted,
+                                            indicatorColor = AmberIndicGold.copy(alpha = 0.25f)
                                         )
-                                    },
-                                    label = {
-                                        Text(
-                                            "Goals",
-                                            fontSize = 11.sp,
-                                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = AmberIndicGold,
-                                        selectedTextColor = AmberIndicGold,
-                                        unselectedIconColor = TextMuted,
-                                        unselectedTextColor = TextMuted,
-                                        indicatorColor = AmberIndicGold.copy(alpha = 0.25f)
                                     )
-                                )
 
-                                // Tab 2: Vault
-                                NavigationBarItem(
-                                    selected = selectedTab == 2,
-                                    onClick = { selectedTab = 2 },
-                                    icon = {
-                                        Icon(
-                                            Icons.Default.Lock,
-                                            contentDescription = "Vault",
-                                            modifier = Modifier.size(22.dp)
+                                    // Tab 2: Vault
+                                    NavigationBarItem(
+                                        selected = selectedTab == 2,
+                                        onClick = { selectedTab = 2 },
+                                        icon = {
+                                            Icon(
+                                                Icons.Default.Lock,
+                                                contentDescription = "Vault",
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                "Vault",
+                                                fontSize = 11.sp,
+                                                fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = EmeraldSafeGreen,
+                                            selectedTextColor = EmeraldSafeGreen,
+                                            unselectedIconColor = TextMuted,
+                                            unselectedTextColor = TextMuted,
+                                            indicatorColor = EmeraldSafeGreen.copy(alpha = 0.25f)
                                         )
-                                    },
-                                    label = {
-                                        Text(
-                                            "Vault",
-                                            fontSize = 11.sp,
-                                            fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = EmeraldSafeGreen,
-                                        selectedTextColor = EmeraldSafeGreen,
-                                        unselectedIconColor = TextMuted,
-                                        unselectedTextColor = TextMuted,
-                                        indicatorColor = EmeraldSafeGreen.copy(alpha = 0.25f)
                                     )
-                                )
 
-                                // Tab 3: Apps Hub
-                                NavigationBarItem(
-                                    selected = selectedTab == 3,
-                                    onClick = { selectedTab = 3 },
-                                    icon = {
-                                        Icon(
-                                            Icons.Default.Apps,
-                                            contentDescription = "Apps Hub",
-                                            modifier = Modifier.size(22.dp)
+                                    // Tab 3: Apps Hub
+                                    NavigationBarItem(
+                                        selected = selectedTab == 3,
+                                        onClick = { selectedTab = 3 },
+                                        icon = {
+                                            Icon(
+                                                Icons.Default.Apps,
+                                                contentDescription = "Apps Hub",
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                "Apps Hub",
+                                                fontSize = 11.sp,
+                                                fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = ElectricIndigo,
+                                            selectedTextColor = ElectricIndigo,
+                                            unselectedIconColor = TextMuted,
+                                            unselectedTextColor = TextMuted,
+                                            indicatorColor = ElectricIndigo.copy(alpha = 0.25f)
                                         )
-                                    },
-                                    label = {
-                                        Text(
-                                            "Apps Hub",
-                                            fontSize = 11.sp,
-                                            fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = ElectricIndigo,
-                                        selectedTextColor = ElectricIndigo,
-                                        unselectedIconColor = TextMuted,
-                                        unselectedTextColor = TextMuted,
-                                        indicatorColor = ElectricIndigo.copy(alpha = 0.25f)
                                     )
-                                )
+                                }
                             }
                         }
                     }

@@ -138,10 +138,13 @@ Or tap **"📂 Select"** at the top to pick your `.gguf` file directly!
             } catch (e: UnsatisfiedLinkError) {
                 Log.e(TAG, "JNI init failed: ${e.message}")
                 false
+            } catch (t: Throwable) {
+                Log.e(TAG, "Native init error: ${t.message}")
+                false
             }
         } else {
-            // Simulated model mount for graceful offline mode
-            true
+            Log.e(TAG, "Native engine is not available. Error: ${S25AgentApplication.nativeLoadError}")
+            false
         }
 
         if (success) {
@@ -157,8 +160,10 @@ Or tap **"📂 Select"** at the top to pick your `.gguf` file directly!
         }
 
         if (!isNativeAvailable) {
-            val simResponse = "નમસ્તે કિશનભાઈ! 🙏 મોડલ (${_loadedModelName.value}) સક્રિય છે. Snapdragon 8 Elite પ્રોસેસર પર ઓન-ડિવાઇસ પ્રોસેસિંગ રેડી છે.\n\nતમે શું મદદ ઈચ્છો છો?"
-            return flowOf(simResponse)
+            val errMsg = "⚠️ Native llama.cpp engine could not be loaded.\n\n" +
+                    "Diagnostics: ${S25AgentApplication.nativeLoadError ?: "Native libraries missing or failed to initialize."}\n\n" +
+                    "Please ensure the device supports 64-bit ARM and the model file is not corrupted."
+            return flowOf(errMsg)
         }
 
         return callbackFlow {
