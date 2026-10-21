@@ -93,9 +93,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
     }
 
     fun selectModelUri(uri: Uri) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _isGenerating.value = true
-            _liveActionStep.value = "UFS 4.0 mmap: Loading GGUF weights into Adreno 830 VRAM..."
+            _liveActionStep.value = "UFS 4.0 mmap: Mapping GGUF weights into Snapdragon 8 Elite..."
             val success = llamaEngine.loadModelFromUri(getApplication(), uri)
             _isGenerating.value = false
             if (success) {
@@ -116,19 +116,22 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), T
     }
 
     fun refreshScan() {
-        val detected = llamaEngine.autoScanAndLoad(getApplication())
-        if (detected != null) {
-            _liveActionStep.value = "Model Detected: $detected"
-            _messages.value = _messages.value + ChatMessage(
-                sender = MessageSender.SYSTEM,
-                text = "✅ Model detected and loaded: $detected"
-            )
-        } else {
-            _liveActionStep.value = "Scan complete • No GGUF models found"
-            _messages.value = _messages.value + ChatMessage(
-                sender = MessageSender.SYSTEM,
-                text = "⚠️ No .gguf model found in Download/s25-agent/models/ yet. Tap '📂 Select' to pick directly from Downloads."
-            )
+        viewModelScope.launch(Dispatchers.IO) {
+            _liveActionStep.value = "Scanning storage for .gguf models..."
+            val detected = llamaEngine.autoScanAndLoad(getApplication())
+            if (detected != null) {
+                _liveActionStep.value = "Model Detected: $detected"
+                _messages.value = _messages.value + ChatMessage(
+                    sender = MessageSender.SYSTEM,
+                    text = "✅ Model detected and loaded: $detected"
+                )
+            } else {
+                _liveActionStep.value = "Scan complete • No GGUF models found"
+                _messages.value = _messages.value + ChatMessage(
+                    sender = MessageSender.SYSTEM,
+                    text = "⚠️ No .gguf model found in Download/s25-agent/models/ yet. Tap '📂 Select' to pick directly from Downloads."
+                )
+            }
         }
     }
 

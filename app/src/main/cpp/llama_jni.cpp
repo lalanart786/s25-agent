@@ -57,14 +57,12 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeInitModel(
     llama_backend_init();
 
     struct llama_model_params mparams = llama_model_default_params();
-    mparams.n_gpu_layers = nGpuLayers;
+    // Run directly on Snapdragon 8 Elite's Oryon CPU cores (ARMv9.2 DotProd + NEON)
+    mparams.n_gpu_layers = 0;
+    mparams.use_mmap = true;
+    mparams.use_mlock = false;
 
     g_model = llama_model_load_from_file(path, mparams);
-    if (g_model == nullptr && nGpuLayers > 0) {
-        LOGI("GPU/NPU load failed, falling back to Snapdragon 8 Elite CPU cores...");
-        mparams.n_gpu_layers = 0;
-        g_model = llama_model_load_from_file(path, mparams);
-    }
     if (g_model == nullptr) {
         LOGE("Failed to load GGUF model from file: %s", path);
         env->ReleaseStringUTFChars(modelPath, path);
@@ -72,11 +70,11 @@ Java_com_agent_s25_domain_engine_LlamaBridge_nativeInitModel(
     }
 
     struct llama_context_params cparams = llama_context_default_params();
-    cparams.n_ctx = contextSize > 0 ? contextSize : 4096;
+    cparams.n_ctx = contextSize > 0 ? contextSize : 2048;
     cparams.n_threads = nThreads > 0 ? nThreads : 6;
     cparams.n_threads_batch = nThreads > 0 ? nThreads : 6;
-    cparams.n_batch = 2048;
-    cparams.n_ubatch = 512;
+    cparams.n_batch = 512;
+    cparams.n_ubatch = 128;
 
     g_context = llama_init_from_model(g_model, cparams);
     if (g_context == nullptr) {

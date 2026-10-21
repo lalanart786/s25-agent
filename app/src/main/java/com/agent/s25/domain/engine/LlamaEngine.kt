@@ -91,16 +91,51 @@ Or tap **"📂 Select"** at the top to pick your `.gguf` file directly!
         try {
             val contentResolver = context.contentResolver
             val fileName = queryFileName(context, uri) ?: "imported_model.gguf"
-            val targetDir = File(context.filesDir, "models").apply { mkdirs() }
-            val destFile = File(targetDir, fileName)
 
-            contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(destFile).use { output ->
-                    input.copyTo(output)
+            // 1. Direct storage hit: Check common download directories to avoid copying 5GB
+            val searchDirs = listOfNotNull(
+                File("/sdcard/Download/$fileName"),
+                File("/sdcard/Download/s25-agent/models/$fileName"),
+                File("/sdcard/Download/s25-agent/$fileName"),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.resolve(fileName),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.resolve("s25-agent/models/$fileName")
+            )
+            for (candidate in searchDirs) {
+                if (candidate.exists() && candidate.canRead() && candidate.length() > 1024 * 1024) {
+                    Log.i(TAG, "Zero-copy storage hit: ${candidate.absolutePath}")
+                    return loadModel(candidate.absolutePath)
                 }
             }
 
-            Log.i(TAG, "Model copied to sandbox: ${destFile.absolutePath}")
+            // 2. Direct descriptor hit via /proc/self/fd/
+            try {
+                val pfd = contentResolver.openFileDescriptor(uri, "r")
+                if (pfd != null) {
+                    val fdPath = "/proc/self/fd/${pfd.fd}"
+                    Log.i(TAG, "Attempting direct proc fd mmap: $fdPath")
+                    val success = loadModel(fdPath)
+                    if (success) {
+                        _loadedModelName.value = fileName
+                        return true
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "proc fd mmap attempt failed: ${e.message}")
+            }
+
+            // 3. Fallback: Copy to app sandbox only if direct access failed
+            val targetDir = File(context.filesDir, "models").apply { mkdirs() }
+            val destFile = File(targetDir, fileName)
+
+            if (!destFile.exists() || destFile.length() < 1024 * 1024) {
+                contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(destFile).use { output ->
+                        input.copyTo(output, bufferSize = 256 * 1024)
+                    }
+                }
+            }
+
+            Log.i(TAG, "Model ready at: ${destFile.absolutePath}")
             val success = loadModel(destFile.absolutePath)
             if (success) {
                 _loadedModelName.value = destFile.name
@@ -125,7 +160,7 @@ Or tap **"📂 Select"** at the top to pick your `.gguf` file directly!
         return name ?: uri.lastPathSegment
     }
 
-    fun loadModel(path: String, nThreads: Int = 6, nGpuLayers: Int = 32): Boolean {
+    fun loadModel(path: String, nThreads: Int = 6, nGpuLayers: Int = 0): Boolean {
         cancelIdleTimer()
         if (activeModelPath == path) {
             return true
@@ -134,7 +169,7 @@ Or tap **"📂 Select"** at the top to pick your `.gguf` file directly!
         Log.i(TAG, "Swapping active model to: $path via Snapdragon 8 Elite UFS 4.0...")
         val success = if (isNativeAvailable) {
             try {
-                LlamaBridge.nativeInitModel(path, nGpuLayers, nThreads, 4096)
+                LlamaBridge.nativeInitModel(path, nGpuLayers, nThreads, 2048)
             } catch (e: UnsatisfiedLinkError) {
                 Log.e(TAG, "JNI init failed: ${e.message}")
                 false

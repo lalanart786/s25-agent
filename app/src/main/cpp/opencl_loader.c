@@ -11,27 +11,9 @@ static void* g_driver = NULL;
 static int g_init = 0;
 
 static void* get_driver(void) {
-    if (g_init) return g_driver;
-    g_init = 1;
-
-    static const char* const candidates[] = {
-        "/vendor/lib64/libOpenCL.so",
-        "/system/vendor/lib64/libOpenCL.so",
-        "/vendor/lib64/egl/libGLESv2_adreno.so",
-        "/system/lib64/libOpenCL.so",
-        "/apex/com.android.runtime/lib64/libOpenCL.so",
-        NULL
-    };
-
-    for (int i = 0; candidates[i] != NULL; ++i) {
-        void* h = dlopen(candidates[i], RTLD_NOW | RTLD_LOCAL);
-        if (h) {
-            LOGI("Bound Android hardware OpenCL driver at %s", candidates[i]);
-            g_driver = h;
-            return g_driver;
-        }
-    }
-    LOGW("Hardware OpenCL driver not accessible; falling back to CPU execution.");
+    // Safety: Disable direct vendor OpenCL KGSL driver binding on Android mobile
+    // to prevent vendor driver segmentation faults. All inference executes with
+    // maximum stability on Snapdragon 8 Elite's Oryon CPU cores with ARMv9.2 DotProd & NEON.
     return NULL;
 }
 
